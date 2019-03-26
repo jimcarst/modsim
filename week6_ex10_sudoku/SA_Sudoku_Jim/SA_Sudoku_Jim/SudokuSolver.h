@@ -11,6 +11,7 @@ public:
 
 	void print();
 	void read(const char* filename);
+	void randomChange();
 
 	vector<vector<int>> getSu();
 
