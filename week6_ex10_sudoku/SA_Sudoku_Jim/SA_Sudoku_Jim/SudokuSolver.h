@@ -1,11 +1,11 @@
 #pragma once
 #include <vector>
-using namespace std;
+using std::vector;
 
 class SudokuSolver
 {
 public:
-	SudokuSolver();
+	SudokuSolver(int dim);
 	~SudokuSolver();
 
 
@@ -13,7 +13,15 @@ public:
 	void read(const char* filename);
 	void randomChange();
 
+	int calculateEnergy();
+	int rowUniques();
+	int colUniques();
+
+	vector<int> blockMaker(int No);
+	int blockUniques();
+	bool isUnique(vector<int> v, int n);
 	vector<vector<int>> getSu();
+	//save
 
 private:
 	vector<vector<int>> _sudoku;
