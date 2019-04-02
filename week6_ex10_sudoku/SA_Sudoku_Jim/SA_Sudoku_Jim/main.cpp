@@ -4,69 +4,41 @@
 #include <iostream>
 using namespace std;
 
-vector<int> blockMaker2(int No) {
-	vector<int> block(9);
-	int xmin = 3 * (No % 3);
-	int ymin = 3 * (No / 3);
-	SudokuSolver su1(9);
-	su1.read("sudokutest.dat");
-	su1.print();
-	vector<vector<int>> testSu = su1.getSu();
-	int col = xmin;
-	int row = ymin;
-	for (int i = 0; i < 9; i++) {
-		col = xmin + (i % 3);
-		row = ymin + (i / 3);
-		block[i] = testSu[col][row];
-	}
-	return block;
-}
-
-
 
 int main() {
-	int mc_steps = 1000;
+	int mc_steps = 10000;
+	int output_steps = 100;
+	double temperature = 5;
+	double alpha = 0.99;
 
 	SudokuSolver su(9);
-	//su.print();
-	//su.read("sudoku.dat");
-	//su.print();
-	//su.randomChange();
-	//su.print();
-	su.read("sudokutest.dat");
-	//su.print();
-	//cout << su.calculateEnergy() << endl;
-	//su.read("sudokuSolved.dat");
+	su.read("sudoku.dat");
 	su.print();
-	cout << su.calculateEnergy() << endl;
+	su.fillRandom();
+	su.print();
+	int oldEnergy = 300;
+	int energy;
 	for (int i = 0; i < mc_steps; i++) {
+		su.saveToTemp();
 		su.randomChange();
-		cout << su.calculateEnergy() << endl;
-	}
+		//su.print();
+		energy = su.calculateEnergy();
 
-	//block1
-	/*vector<int> block1(9);
-	vector<vector<int>> testSu = su.getSu();
-	int row = 0;
-	int col = 0;
-	for (int i = 0; i < 9; i++) {
-		block1[i] = testSu[col][row];
-		col++;
-		if (col > 2) {
-			col = 0;
-			row++;
+		double acceptance = ((double)oldEnergy - (double)energy) / temperature;
+		if (energy > oldEnergy || su.returnRandom() > exp(acceptance))	{
+			su.saveToSu();
 		}
-	}*/
+		else {
 
-	//vector<int> block1 = blockMaker2(2);
-	vector<int> block1 = su.blockMaker(6);
-	for (auto el : block1) {
-		cout << el << ",  ";
+		}
+		if (i%output_steps == 0) {
+			temperature *= alpha;
+		}
+		oldEnergy = energy;
+		cout<<"{" << energy <<", "<< temperature<<"}, "<<endl;
 	}
-	cout << endl;
-	//cout <<"energy "<< su.calculateEnergy() << endl;
-	su.read("sudokuSolved.dat");
+	cout<<"E = " << energy <<", T =  "<< temperature<<endl;
 	su.print();
-	cout <<"energy "<< su.calculateEnergy() << endl;
+	
 	return 0;
 }

@@ -9,13 +9,15 @@ using std::vector;
 using std::cout; using std::endl;
 using std::setw; using std::setfill; using std::left;
 using std::ifstream;
-using std::mt19937; using std::uniform_int_distribution;
+using std::mt19937; using std::uniform_int_distribution; using std::uniform_real_distribution;
 
 
 
 
 SudokuSolver::SudokuSolver(int dim = 9) : _dim(dim){
 	_sudoku.resize(_dim, vector<int>(_dim, 0));	
+	_fixed.resize(_dim, vector<bool>(_dim, false));
+	mt19937 _rng(std::chrono::steady_clock::now().time_since_epoch().count());
 }
 
 
@@ -53,17 +55,52 @@ void SudokuSolver::read(const char* filename) {
 		_sudoku[x][y] = value;
 		count++;
 	}
+
+	for (int i = 0; i < _dim; i++) {
+		for (int j = 0; j < _dim; j++) {
+			if (_sudoku[j][i] != 0) {
+				_fixed[j][i] = true;
+			}
+		}
+	}
+}
+
+double SudokuSolver::returnRandom() {
+	double random = uniform_real_distribution<double>(0.0, 1.0)(_rng);
+	return random;
+}
+
+int SudokuSolver::blockFinder(int col, int row) {
+	int rowFirst = (row / 3) * 3;
+	int colFirst = (col / 3) * 3;
+	return rowFirst  + colFirst / 3;
+}
+
+void SudokuSolver::fillRandom() {
+
+	for (int i = 0; i < _dim; i++) {
+		for (int j = 0; j < _dim; j++) {
+			
+			int nBlock = blockFinder(j, i);
+			vector<int> blockVec = blockMaker(nBlock);
+
+			while (!_fixed[j][i] && _sudoku[j][i] == 0) {
+				int random = uniform_int_distribution<int>(1, 9)(_rng);
+				if (!isUnique(blockVec, random)) {
+					_sudoku[j][i] = random;
+				}
+			}
+		}
+	}
+
 }
 
 void SudokuSolver::randomChange() {
-	mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
-
-	
-	for (int i = 0; i < _dim; i++) {
-		for (int j = 0; j < _dim; j++) {
-			int random = uniform_int_distribution<int>(1, 9)(rng);
-			_sudoku[j][i] = random;
-		}
+	int nx = uniform_int_distribution<int>(0, _dim - 1)(_rng);
+	int ny = uniform_int_distribution<int>(0, _dim - 1)(_rng);
+	//_sudokuTemp = _sudoku;
+	if (!_fixed[ny][nx]) {
+		_sudoku[ny][nx] = uniform_int_distribution<int>(1, 9)(_rng);
 	}
 }
 
@@ -145,4 +182,16 @@ bool SudokuSolver::isUnique(vector<int> v, int n) {
 
 vector<vector<int>> SudokuSolver::getSu() {
 	return this->_sudoku;
+}
+
+void SudokuSolver::saveToSu() {
+	_sudoku = _sudokuTemp;
+}
+
+void SudokuSolver::saveToTemp() {
+	_sudokuTemp = _sudoku;
+}
+
+void SudokuSolver::save() {
+	_sudoku = _sudokuTemp;
 }
