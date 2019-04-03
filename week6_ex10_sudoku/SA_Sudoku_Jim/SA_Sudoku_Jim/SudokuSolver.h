@@ -24,15 +24,9 @@ public:
 
 	vector<int> blockMaker(int No);
 	int blockUniques();
-	bool isUnique(vector<int> v, int n);
+	bool isUnique(const vector<int>& v, int n);
 	vector<vector<int>> getSu();
-	//save
-	void saveToSu();
-	void saveToTemp();
-	void save();
-	//accept
 
-	double returnRandom();
 
 	double getTemperature();
 	void setTemperature(double T);
@@ -41,7 +35,6 @@ private:
 	int blockFinder(int x, int y);
 
 	vector<vector<int>> _sudoku;
-	vector<vector<int>> _sudokuTemp;
 	vector<vector<bool>> _fixed;
 	mt19937 _rng;
 

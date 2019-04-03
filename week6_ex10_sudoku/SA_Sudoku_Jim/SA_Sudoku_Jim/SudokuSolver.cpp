@@ -66,10 +66,6 @@ void SudokuSolver::read(const char* filename) {
 	}
 }
 
-double SudokuSolver::returnRandom() {
-	double random = uniform_real_distribution<double>(0.0, 1.0)(_rng);
-	return random;
-}
 
 double SudokuSolver::getTemperature() {
 	return _temperature;
@@ -136,7 +132,7 @@ int SudokuSolver::calculateEnergy() {
 int SudokuSolver::colUniques() {
 	int count = 0;
 	for (int col = 0; col < _dim; col++) {
-		vector<int> colVec = _sudoku[col];
+		const vector<int>& colVec = _sudoku[col];
 		for (int i = 1; i <= _dim; i++) {
 			if (isUnique(colVec, i)) {
 				count++;
@@ -188,9 +184,9 @@ vector<int> SudokuSolver::blockMaker(int No) {
 	return block;
 }
 
-bool SudokuSolver::isUnique(vector<int> v, int n) {
+bool SudokuSolver::isUnique(const vector<int>& v, int n) {
 	int count = 0;
-	for (size_t i = 0; i < v.size(); i++) {
+	for (int i = 0; i < _dim; i++) {
 		if (v[i] == n) {
 			count++;
 		}
@@ -204,16 +200,4 @@ bool SudokuSolver::isUnique(vector<int> v, int n) {
 
 vector<vector<int>> SudokuSolver::getSu() {
 	return this->_sudoku;
-}
-
-void SudokuSolver::saveToSu() {
-	_sudoku = _sudokuTemp;
-}
-
-void SudokuSolver::saveToTemp() {
-	_sudokuTemp = _sudoku;
-}
-
-void SudokuSolver::save() {
-	_sudoku = _sudokuTemp;
 }
