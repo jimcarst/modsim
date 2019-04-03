@@ -106,7 +106,7 @@ void SudokuSolver::randomChange() {
 
 // 243 = 9*9*3
 int SudokuSolver::calculateEnergy() {
-	int energy = 243 - (rowUniques() + colUniques() + blockUniques());
+	int energy = 243 - (rowUniques() + colUniques() + blockUniques());//count number as faults
 	return energy;
 }
 

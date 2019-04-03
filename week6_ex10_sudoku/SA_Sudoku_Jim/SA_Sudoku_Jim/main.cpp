@@ -2,21 +2,22 @@
 
 #include "SudokuSolver.h"
 #include <iostream>
-using namespace std;
 
+using std::cout; using std::endl;
+//using std::exp;
 
 int main() {
-	int mc_steps = 10000;
-	int output_steps = 100;
-	double temperature = 5;
-	double alpha = 0.99;
+	int mc_steps = 300000;
+	int output_steps = 10000;
+	double temperature = 5.;
+	double alpha = 0.5;
 
 	SudokuSolver su(9);
 	su.read("sudoku.dat");
 	su.print();
 	su.fillRandom();
 	su.print();
-	int oldEnergy = 300;
+	int oldEnergy = su.calculateEnergy();
 	int energy;
 	for (int i = 0; i < mc_steps; i++) {
 		su.saveToTemp();
@@ -24,8 +25,8 @@ int main() {
 		//su.print();
 		energy = su.calculateEnergy();
 
-		double acceptance = ((double)oldEnergy - (double)energy) / temperature;
-		if (energy > oldEnergy || su.returnRandom() > exp(acceptance))	{
+		double acceptance = ((double)energy - (double)oldEnergy) / temperature;
+		if (su.returnRandom() > exp(-acceptance)) {//remove energ<olde
 			su.saveToSu();
 		}
 		else {
@@ -33,9 +34,9 @@ int main() {
 		}
 		if (i%output_steps == 0) {
 			temperature *= alpha;
+		cout<<"{" << energy <<", "<< temperature<<"}, "<<endl;
 		}
 		oldEnergy = energy;
-		cout<<"{" << energy <<", "<< temperature<<"}, "<<endl;
 	}
 	cout<<"E = " << energy <<", T =  "<< temperature<<endl;
 	su.print();
