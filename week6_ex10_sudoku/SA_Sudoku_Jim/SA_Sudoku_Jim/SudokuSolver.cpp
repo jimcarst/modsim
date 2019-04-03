@@ -19,6 +19,7 @@ SudokuSolver::SudokuSolver(int dim = 9) : _dim(dim){
 	_fixed.resize(_dim, vector<bool>(_dim, false));
 	mt19937 _rng(std::chrono::steady_clock::now().time_since_epoch().count());
 	_temperature = 10;
+	_EOld = calculateEnergy();
 }
 
 
@@ -97,11 +98,11 @@ void SudokuSolver::fillRandom() {
 			}
 		}
 	}
-
+	_EOld = calculateEnergy();
 }
 
 int SudokuSolver::randomChange() {
-	int EOld = calculateEnergy();
+	//int EOld = calculateEnergy();
 	int nx = uniform_int_distribution<int>(0, _dim - 1)(_rng);
 	int ny = uniform_int_distribution<int>(0, _dim - 1)(_rng);
 	int oldValue = _sudoku[ny][nx];
@@ -110,9 +111,10 @@ int SudokuSolver::randomChange() {
 	}
 
 	int ENew = calculateEnergy();
-	double acceptance = ((double)ENew - (double)EOld) / _temperature;
+	double acceptance = ((double)ENew - (double)_EOld) / _temperature;
 	double random = uniform_real_distribution<double>(0.0, 1.0)(_rng);
 	if (random < exp(-acceptance)) {//remove energ<olde
+		_EOld = ENew;
 		return 1;//accepted
 	}
 	else {
@@ -143,8 +145,7 @@ int SudokuSolver::colUniques() {
 }
 int SudokuSolver::rowUniques() {
 	int count = 0;
-	for (int row = 0; row < _dim; row++) {
-
+	/*for (int row = 0; row < _dim; row++) {
 		vector<int> rowVec(_dim);
 		for (int i = 0; i < _dim; i++) {
 			rowVec[i] = _sudoku[i][row];
@@ -154,7 +155,19 @@ int SudokuSolver::rowUniques() {
 				count++;
 			}
 		}
+	}*/
+	vector<int> rowVec(_dim); // Specify maximum dimension       
+	for (int row = 0; row < _dim; row++) {
+		for (int i = 0; i < _dim; i++) {
+			rowVec[i] = _sudoku[i][row];
+		}
+		for (int i = 1; i <= _dim; i++) {
+			if (isUnique(rowVec, i)) {
+				count++;
+			}
+		}
 	}
+
 	return count;
 }
 

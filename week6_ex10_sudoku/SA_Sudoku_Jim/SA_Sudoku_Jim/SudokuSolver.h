@@ -40,5 +40,6 @@ private:
 
 	double _temperature;
 	int _dim;
+	int _EOld;
 };
 
