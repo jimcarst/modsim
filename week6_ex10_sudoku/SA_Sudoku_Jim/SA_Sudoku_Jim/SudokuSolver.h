@@ -30,6 +30,7 @@ public:
 
 	double getTemperature();
 	void setTemperature(double T);
+	int getEOld();
 
 private:
 	int blockFinder(int x, int y);

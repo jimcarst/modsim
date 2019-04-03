@@ -7,10 +7,10 @@
 using std::cout; using std::endl;
 
 int main() {
-	int mc_steps = 500000;
+	int mc_steps = 1000000;
 	int output_steps = 10000;
 	double TStart = 4.;
-	double alpha = 0.93;
+	double alpha = 0.95;
 
 	SudokuSolver su(9);
 	su.read("sudoku.dat");
@@ -30,11 +30,11 @@ int main() {
 
 	while (E != 0) {
 		for (int i = 0; i < mc_steps; i++) {
-			su.randomChange();
-			E = su.calculateEnergy();
-			if (E == 0) {
-				break;
+			if (su.randomChange() == 1) {
+				E = su.getEOld();
 			}
+			//E = su.calculateEnergy();
+			if (E == 0) break;
 			//su.print();			
 			if (i% output_steps == 0 && i != 0) {
 				temperature *= alpha;
@@ -45,6 +45,7 @@ int main() {
 				myfile << temperature << ',' << E << endl;
 			}			
 		}
+		if (E == 0) break;
 		su.fillRandom();
 		su.setTemperature(TStart);
 		temperature = su.getTemperature();

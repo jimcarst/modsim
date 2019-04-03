@@ -76,6 +76,10 @@ void SudokuSolver::setTemperature(double T) {
 	_temperature = T;
 }
 
+int SudokuSolver::getEOld() {
+	return _EOld;
+}
+
 int SudokuSolver::blockFinder(int col, int row) {
 	int rowFirst = (row / 3) * 3;
 	int colFirst = (col / 3) * 3;
