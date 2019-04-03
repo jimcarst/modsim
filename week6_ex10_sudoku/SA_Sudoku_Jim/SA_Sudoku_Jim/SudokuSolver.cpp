@@ -70,6 +70,14 @@ double SudokuSolver::returnRandom() {
 	return random;
 }
 
+double SudokuSolver::getTemperature() {
+	return _temperature;
+}
+
+void SudokuSolver::setTemperature(double T) {
+	_temperature = T;
+}
+
 int SudokuSolver::blockFinder(int col, int row) {
 	int rowFirst = (row / 3) * 3;
 	int colFirst = (col / 3) * 3;
@@ -95,13 +103,21 @@ void SudokuSolver::fillRandom() {
 
 }
 
-void SudokuSolver::randomChange() {
+int SudokuSolver::randomChange() {
+	int EOld = calculateEnergy();
 	int nx = uniform_int_distribution<int>(0, _dim - 1)(_rng);
 	int ny = uniform_int_distribution<int>(0, _dim - 1)(_rng);
-	//_sudokuTemp = _sudoku;
+	int oldValue = _sudoku[ny][nx];
 	if (!_fixed[ny][nx]) {
 		_sudoku[ny][nx] = uniform_int_distribution<int>(1, 9)(_rng);
 	}
+
+	int ENew = calculateEnergy();
+	double acceptance = ((double)energy - (double)oldEnergy) / temperature;
+	if (su.returnRandom() < exp(-acceptance)) {//remove energ<olde
+		su.saveToSu();
+	}
+
 }
 
 // 243 = 9*9*3

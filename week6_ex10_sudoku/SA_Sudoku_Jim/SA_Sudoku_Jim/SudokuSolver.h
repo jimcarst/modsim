@@ -16,7 +16,7 @@ public:
 	void read(const char* filename);
 
 	void fillRandom();
-	void randomChange();
+	int randomChange();
 
 	int calculateEnergy();
 	int rowUniques();
@@ -34,15 +34,18 @@ public:
 
 	double returnRandom();
 
+	double getTemperature();
+	void setTemperature(double T);
+
 private:
 	int blockFinder(int x, int y);
 
 	vector<vector<int>> _sudoku;
 	vector<vector<int>> _sudokuTemp;
-
 	vector<vector<bool>> _fixed;
-	int _dim;
 	mt19937 _rng;
 
+	double _temperature;
+	int _dim;
 };
 
