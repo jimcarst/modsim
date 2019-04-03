@@ -333,3 +333,4 @@ ASALocalRun/
 *.gz
 *.out
 *.aux
+*.exe
