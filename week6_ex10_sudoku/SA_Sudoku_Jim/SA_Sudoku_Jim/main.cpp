@@ -18,31 +18,24 @@ int main() {
 	su.fillRandom();
 	cout << "The sudoku is randomly filled and looks as follows: " << endl;
 	su.print();
-	int oldEnergy = su.calculateEnergy();
-	int energy = oldEnergy;
-	cout << "The initial energy is: " << oldEnergy <<endl;
-	while (energy != 0) {
+	int E = su.calculateEnergy();
+	su.setTemperature(temperature);
+	cout << "E0 = " << E << ", T0 = " << temperature << endl;
+	while (E != 0) {
 		for (int i = 0; i < mc_steps; i++) {
-			su.saveToTemp();
 			su.randomChange();
-			//su.print();
-			energy = su.calculateEnergy();
-
-			double acceptance = ((double)energy - (double)oldEnergy) / temperature;
-			if (su.returnRandom() < exp(-acceptance)) {//remove energ<olde
-				su.saveToSu();
-			}
-			else {
-
-			}
+			E = su.calculateEnergy();
+			//su.print();			
 			if (i % output_steps == 0) {
 				temperature *= alpha;
+				su.setTemperature(temperature);
 			}
-			cout << "{" << energy << ", " << temperature << "}, " << endl;
-			oldEnergy = energy;
+			if (i % 100 == 0) {
+				cout << "{" << E << ", " << temperature << "}, " << endl;
+			}
 		}
 	}
-	cout<<"E = " << energy <<", T =  "<< temperature<<endl;
+	cout<<"E = " << E <<", T =  "<< temperature<<endl;
 	su.print();
 	
 	return 0;

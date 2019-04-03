@@ -18,6 +18,7 @@ SudokuSolver::SudokuSolver(int dim = 9) : _dim(dim){
 	_sudoku.resize(_dim, vector<int>(_dim, 0));	
 	_fixed.resize(_dim, vector<bool>(_dim, false));
 	mt19937 _rng(std::chrono::steady_clock::now().time_since_epoch().count());
+	_temperature = 10;
 }
 
 
@@ -113,9 +114,14 @@ int SudokuSolver::randomChange() {
 	}
 
 	int ENew = calculateEnergy();
-	double acceptance = ((double)energy - (double)oldEnergy) / temperature;
-	if (su.returnRandom() < exp(-acceptance)) {//remove energ<olde
-		su.saveToSu();
+	double acceptance = ((double)ENew - (double)EOld) / _temperature;
+	double random = uniform_real_distribution<double>(0.0, 1.0)(_rng);
+	if (random < exp(-acceptance)) {//remove energ<olde
+		return 1;//accepted
+	}
+	else {
+		_sudoku[ny][nx] = oldValue; //revert change
+		return 0; //not accepted
 	}
 
 }
