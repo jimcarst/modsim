@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28729.10
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EX5_npt_ensemble", "EX5_npt_ensemble.vcxproj", "{D2289B1F-CFC9-4F6F-A908-3E16C2888CF3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D2289B1F-CFC9-4F6F-A908-3E16C2888CF3}.Debug|x64.ActiveCfg = Debug|x64
+		{D2289B1F-CFC9-4F6F-A908-3E16C2888CF3}.Debug|x64.Build.0 = Debug|x64
+		{D2289B1F-CFC9-4F6F-A908-3E16C2888CF3}.Debug|x86.ActiveCfg = Debug|Win32
+		{D2289B1F-CFC9-4F6F-A908-3E16C2888CF3}.Debug|x86.Build.0 = Debug|Win32
+		{D2289B1F-CFC9-4F6F-A908-3E16C2888CF3}.Release|x64.ActiveCfg = Release|x64
+		{D2289B1F-CFC9-4F6F-A908-3E16C2888CF3}.Release|x64.Build.0 = Release|x64
+		{D2289B1F-CFC9-4F6F-A908-3E16C2888CF3}.Release|x86.ActiveCfg = Release|Win32
+		{D2289B1F-CFC9-4F6F-A908-3E16C2888CF3}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CEF695AE-2E79-4A64-AD53-8680F116F514}
+	EndGlobalSection
+EndGlobal
