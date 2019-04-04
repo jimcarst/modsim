@@ -105,7 +105,7 @@ int move_particle(void) {
 
 void write_data(int step) {
 	char buffer[128];
-	sprintf(buffer, "coords_step%07d.dat", step);
+	sprintf(buffer, "coords_step%07d.output", step);
 	FILE* fp = fopen(buffer, "w");
 	int d, n;
 	fprintf(fp, "%d\n", n_particles);

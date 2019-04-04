@@ -174,7 +174,7 @@ int move_particle(void) {
 /* Write the configuration files */
 void write_data(int step) {
 	char buffer[128];
-	sprintf(buffer, "coords_step%07d.dat", step);
+	sprintf(buffer, "coords_step%07d.output", step);
 	FILE* fp = fopen(buffer, "w");
 	int d, n;
 	fprintf(fp, "%d\n", n_particles);
@@ -257,7 +257,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		/*char buffer[128];
-		sprintf(buffer, "measurement_pack%03d.dat", (int)(packing_fraction*100.));
+		sprintf(buffer, "measurement_pack%03d.output", (int)(packing_fraction*100.));
 		FILE* fp = fopen(buffer, "w");
 		for (int pi = 0; pi < NBINS; pi++) {
 			fprintf(fp, "%lg\n", histogramAverage[pi]);

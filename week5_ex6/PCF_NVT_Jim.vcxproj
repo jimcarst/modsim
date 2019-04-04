@@ -115,15 +115,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="hs-nvt-full.c" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="mt19937.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fcc_108.dat" />
     <None Include="fcc_500.dat" />
     <None Include="fluid2.dat" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="hs-nvt_Jim.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

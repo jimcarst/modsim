@@ -32,7 +32,7 @@ int main() {
 
 
 	ofstream myfile;
-	myfile.open("energy.dat");
+	myfile.open("energy.output");
 
 	while (E != 0) {
 		for (int i = 0; i < mc_steps; i++) {

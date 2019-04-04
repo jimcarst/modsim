@@ -335,3 +335,4 @@ coords*.dat
 *.aux
 *.exe
 *.nb
+*.output
