@@ -11,29 +11,24 @@ public:
 	SudokuSolver(int dim);
 	~SudokuSolver();
 
-
 	void print();
 	void read(const char* filename);
 
 	void fillRandom();
 	int randomChange();
-
 	int calculateEnergy();
-	int rowUniques();
-	int colUniques();
-
-	vector<int> blockMaker(int No);
-	int blockUniques();
-	bool isUnique(const vector<int>& v, int n);
-	vector<vector<int>> getSu();
-
-
+   
 	double getTemperature();
 	void setTemperature(double T);
 	int getEOld();
 
 private:
+	int rowUniques();
+	int colUniques();
+	int blockMaker(int No, int i);
+	int blockUniques();
 	int blockFinder(int x, int y);
+	bool isUnique(const vector<int>& v, int n);
 
 	vector<vector<int>> _sudoku;
 	vector<vector<bool>> _fixed;

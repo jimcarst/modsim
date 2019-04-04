@@ -5,17 +5,15 @@
 #include <random>
 #include <chrono>
 
-using std::vector; 
+using std::vector;
 using std::cout; using std::endl;
 using std::setw; using std::setfill; using std::left;
 using std::ifstream;
 using std::mt19937; using std::uniform_int_distribution; using std::uniform_real_distribution;
 
 
-
-
-SudokuSolver::SudokuSolver(int dim = 9) : _dim(dim){
-	_sudoku.resize(_dim, vector<int>(_dim, 0));	
+SudokuSolver::SudokuSolver(int dim = 9) : _dim(dim) {
+	_sudoku.resize(_dim, vector<int>(_dim, 0));
 	_fixed.resize(_dim, vector<bool>(_dim, false));
 	mt19937 _rng(std::chrono::steady_clock::now().time_since_epoch().count());
 	_temperature = 10;
@@ -23,13 +21,11 @@ SudokuSolver::SudokuSolver(int dim = 9) : _dim(dim){
 }
 
 
-SudokuSolver::~SudokuSolver()
-{
-}
+SudokuSolver::~SudokuSolver() { }
 
 void SudokuSolver::print() {
 	int width = 20;
-	cout << setw(width) << setfill('=') << " " << endl<<setfill(' ');
+	cout << setw(width) << setfill('=') << " " << endl << setfill(' ');
 	for (int i = 0; i < _dim; i++) {
 		for (int j = 0; j < _dim; j++) {
 			if (j % 3 == 0) cout << '|';
@@ -80,19 +76,18 @@ int SudokuSolver::getEOld() {
 	return _EOld;
 }
 
-int SudokuSolver::blockFinder(int col, int row) {
-	int rowFirst = (row / 3) * 3;
-	int colFirst = (col / 3) * 3;
-	return rowFirst  + colFirst / 3;
-}
+
 
 void SudokuSolver::fillRandom() {
 
 	for (int i = 0; i < _dim; i++) {
 		for (int j = 0; j < _dim; j++) {
-			
+
 			int nBlock = blockFinder(j, i);
-			vector<int> blockVec = blockMaker(nBlock);
+			vector<int> blockVec(_dim);
+			for (int i = 0; i < _dim; i++) {
+				blockVec[i] = blockMaker(nBlock, i);
+			}
 
 			while (!_fixed[j][i] && _sudoku[j][i] == 0) {
 				int random = uniform_int_distribution<int>(1, 9)(_rng);
@@ -106,13 +101,24 @@ void SudokuSolver::fillRandom() {
 }
 
 int SudokuSolver::randomChange() {
-	//int EOld = calculateEnergy();
-	int nx = uniform_int_distribution<int>(0, _dim - 1)(_rng);
-	int ny = uniform_int_distribution<int>(0, _dim - 1)(_rng);
+	int nx, ny;
+	do {
+		nx = uniform_int_distribution<int>(0, _dim - 1)(_rng);
+		ny = uniform_int_distribution<int>(0, _dim - 1)(_rng);
+	} while (_fixed[ny][nx]);
+
 	int oldValue = _sudoku[ny][nx];
-	if (!_fixed[ny][nx]) {
-		_sudoku[ny][nx] = uniform_int_distribution<int>(1, 9)(_rng);
-	}
+
+	int nx2, ny2;
+	do {
+		nx2 = (nx / 3) * 3 + uniform_int_distribution<int>(0, 2)(_rng);
+		ny2 = (ny / 3) * 3 + uniform_int_distribution<int>(0, 2)(_rng);
+	} while ((nx2 == nx && ny2 == ny) || _fixed[ny2][nx2]);
+
+
+	_sudoku[ny][nx] = _sudoku[ny2][nx2];
+	_sudoku[ny2][nx2] = oldValue;
+
 
 	int ENew = calculateEnergy();
 	double acceptance = ((double)ENew - (double)_EOld) / _temperature;
@@ -122,6 +128,7 @@ int SudokuSolver::randomChange() {
 		return 1;//accepted
 	}
 	else {
+		_sudoku[ny2][nx2] = _sudoku[ny][nx]; //revert change
 		_sudoku[ny][nx] = oldValue; //revert change
 		return 0; //not accepted
 	}
@@ -149,17 +156,6 @@ int SudokuSolver::colUniques() {
 }
 int SudokuSolver::rowUniques() {
 	int count = 0;
-	/*for (int row = 0; row < _dim; row++) {
-		vector<int> rowVec(_dim);
-		for (int i = 0; i < _dim; i++) {
-			rowVec[i] = _sudoku[i][row];
-		}
-		for (int i = 1; i <= _dim; i++) {
-			if (isUnique(rowVec, i)) {
-				count++;
-			}
-		}
-	}*/
 	vector<int> rowVec(_dim); // Specify maximum dimension       
 	for (int row = 0; row < _dim; row++) {
 		for (int i = 0; i < _dim; i++) {
@@ -177,8 +173,11 @@ int SudokuSolver::rowUniques() {
 
 int SudokuSolver::blockUniques() {
 	int count = 0;
+	vector<int> blockVec(_dim);
 	for (int nBlock = 0; nBlock < _dim; nBlock++) {
-		vector<int> blockVec = blockMaker(nBlock);
+		for (int i = 0; i < _dim; i++) {
+			blockVec[i] = blockMaker(nBlock, i);
+		}
 		for (int i = 1; i <= _dim; i++) {
 			if (isUnique(blockVec, i)) {
 				count++;
@@ -188,20 +187,24 @@ int SudokuSolver::blockUniques() {
 	return count;
 }
 
-vector<int> SudokuSolver::blockMaker(int No) {
-	vector<int> block(_dim);
+int SudokuSolver::blockMaker(int No, int i) {
+	int block;
 	int xmin = 3 * (No % 3);
 	int ymin = 3 * (No / 3);
 	int col, row;
-	for (int i = 0; i < _dim; i++) {
-		col = xmin + (i % 3);
-		row = ymin + (i / 3);
-		block[i] = _sudoku[col][row];
-	}
+	col = xmin + (i % 3);
+	row = ymin + (i / 3);
+	block = _sudoku[col][row];
 	return block;
 }
 
-bool SudokuSolver::isUnique(const vector<int>& v, int n) {
+int SudokuSolver::blockFinder(int col, int row) {
+	int rowFirst = (row / 3) * 3;
+	int colFirst = (col / 3) * 3;
+	return rowFirst + colFirst / 3;
+}
+
+bool SudokuSolver::isUnique(const vector<int> & v, int n) {
 	int count = 0;
 	for (int i = 0; i < _dim; i++) {
 		if (v[i] == n) {
@@ -210,11 +213,8 @@ bool SudokuSolver::isUnique(const vector<int>& v, int n) {
 	}
 	if (count == 1) {
 		return true;
-	} else {
+	}
+	else {
 		return false;
 	}
-}
-
-vector<vector<int>> SudokuSolver::getSu() {
-	return this->_sudoku;
 }
