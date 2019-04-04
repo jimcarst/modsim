@@ -1,0 +1,7 @@
+- larger box size
+- plotting the full range is not mentioned
+- particles don't stick at the edges but do stick out
+- for hard spheres the distance does not matter only the overlap
+- the line you mentioned is commented out, it is merely a more efficient way of 
+	writing this down
+- the thing I forgot is the nearest image convention

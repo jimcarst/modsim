@@ -218,9 +218,9 @@ int main(int argc, char* argv[]) {
 			printf("dens %lg mid %lg\n",density,muid);
 			
 			char buffer[128];
-			sprintf(buffer, "TESTmeasurement_d%03d_b%03d.dat", (int)(density*10.), (int)(beta*10.));
+			sprintf(buffer, "measurement_d%03d_b%03d.output", (int)(density*10.), (int)(beta*10.));
 			FILE* fp = fopen(buffer, "w");
-			//FILE* fp = fopen("measurements.dat", "w");
+			//FILE* fp = fopen("measurements.output", "w");
 
 			int accepted = 0;
 			for (step = 0; step < mc_steps; ++step) {
