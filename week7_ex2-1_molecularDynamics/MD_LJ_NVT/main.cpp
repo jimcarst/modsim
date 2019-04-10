@@ -22,13 +22,18 @@ double packing_fraction = 0.5;
 const double diameter = 1.0;
 const double delta = 0.1;
 const char* init_filename = "fcc_108.dat";
-
+double temperature = 10;
 /* Simulation variables */
 int n_particles = 0;
 double radius;
 double particle_volume;
 double r[N][NDIM];
+double v[N][NDIM];
 double box[NDIM];
+
+
+double f[N];
+double en;
 
 mt19937 _rng;
 
@@ -147,19 +152,99 @@ void set_packing_fraction(void) {
 	for (d = 0; d < NDIM; ++d) box[d] *= scale_factor;
 }
 
+void init() {
+	double sumV = 0.;
+	double sumV2 = 0.;
+	for (int i = 0; i < n_particles; i++) {
+		for (int d = 0; d < NDIM; ++d) {
+			v[i][d] = uniform_real_distribution<double>(-1., 1.)(_rng);
+			sumV += v[i][d];
+			sumV2 += v[i][d] * v[i][d];
+		}
+	}
+	sumV /= n_particles;
+	sumV2 /= n_particles;
+	double fs = sqrt(3 * temperature / sumV2);
+	for (int i = 0; i < n_particles; i++) {
+		for (int d = 0; d < NDIM; ++d) {
+			v[i][d] = (v[i][d] - sumV) * fs;
+		}
+	}
+}
+
+void force() {
+	en = 0;
+	double eCut = 10;//formula
+	double rc = 1;
+	double rc2 = rc * rc;
+	for (int i = 0; i < n_particles; i++) {
+		f[i] = 0;
+	}
+	for (int i = 0; i < n_particles - 1; i++) {
+		for (int j = i + 1; j < n_particles; j++) {
+			for (int d = 0; d < NDIM; ++d) {
+				double xR = r[i][d] - r[j][d];
+				xR -= box[d] * (int)(xR / box[d]);//periodic BC
+				double r2 = xR * xR;
+				if (r2 < rc2) {
+					double r2i = 1 / r2;
+					double r6i = pow(r2i, 3.);
+					double ff = 48 * r2i * r6i * (r6i - 0.5);
+					f[i] += ff * xR;
+					f[j] -= ff * xR;
+					en += 4 * r6i * (r6i - 1) - eCut;
+				}
+			}
+		}
+	}
+
+}
+
+void integrate() {
+	double sumV = 0;
+	double sumV2 = 0;
+	double xm[N][NDIM];
+	for (int i = 0; i < n_particles; i++) {
+		for (int d = 0; d < NDIM; ++d) {
+			double xx = 2 * r[i][d] - xm[i][d] + delta * delta * f[i];
+			double vi = (xx - xm[i][d]) / (2 * delta);
+			sumV2 += vi * vi;
+			xm[i][d] = r[i][d];
+			r[i][d] -= xx;
+			//periodic BC
+			r[i][d] -= floor(r[i][d] / box[d]) * box[d];
+
+		}
+	}
+	temperature = sumV2 / (3. * n_particles);
+}
 
 int main() {
 	radius = 0.5 * diameter;
 
 	if (NDIM == 3) particle_volume = M_PI * pow(diameter, 3.0) / 6.0;
 	else if (NDIM == 2) particle_volume = M_PI * pow(radius, 2.0);
-	else {printf("Number of dimensions NDIM = %d, not supported.", NDIM); return 0;}
+	else { printf("Number of dimensions NDIM = %d, not supported.", NDIM); return 0; }
 	read_data(init_filename);
 
 	set_packing_fraction();
 	mt19937 _rng(std::chrono::steady_clock::now().time_since_epoch().count());
-	
+	init();
+
 	int accepted = 0;
+	double t = 0.0;
+	double deltaT = 0.1;
+	double tMax = 10;
+
+	for (double t = 0.0; t < tMax; t += deltaT) {
+		force();
+		integrate();
+		cout << "t = " << t << " , e = " << en << endl;
+		write_data(t);
+	}
+
+
+	/*
 	for (int step = 0; step < mc_steps; ++step) {
 		for (int n = 0; n < n_particles; ++n) {
 			accepted += move_particle();
@@ -168,8 +253,7 @@ int main() {
 			cout << "Step " << step << " Move acceptance: " << (double)accepted / ((double)n_particles * output_steps) << endl;
 			accepted = 0;
 			write_data(step);
-		}		
-	}
+		}*/
 
 	return 0;
 }
