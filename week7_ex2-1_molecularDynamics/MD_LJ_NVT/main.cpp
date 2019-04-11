@@ -17,7 +17,7 @@ const int NDIM = 3;
 const int N = 520;
 /* Initialization variables */
 const int mc_steps = 100000;
-const int output_steps = 1000;
+const int output_steps = 100;
 double packing_fraction = 0.5;
 const double diameter = 1.0;
 const double delta = 0.1;
@@ -234,13 +234,16 @@ int main() {
 	int accepted = 0;
 	double t = 0.0;
 	double deltaT = 0.1;
-	double tMax = 10;
-
+	double tMax = 1000;
+	double outputT = 100;
 	for (double t = 0.0; t < tMax; t += deltaT) {
 		force();
 		integrate();
-		cout << "t = " << t << " , e = " << en << endl;
-		write_data(t);
+
+		if ((int)t % output_steps == 0) {
+			cout << "t = " << t << ", E = " << en << endl;
+			write_data(t);
+		}
 	}
 
 
