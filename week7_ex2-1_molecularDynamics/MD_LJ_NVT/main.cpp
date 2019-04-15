@@ -16,23 +16,26 @@ const double M_PI = 3.141592653589793238463;
 const int NDIM = 3;
 const int N = 520;
 /* Initialization variables */
-const int mc_steps = 100000;
-const int output_steps = 100;
-double packing_fraction = 0.5;
+const int mc_steps = 1000000;
+const int output_steps = 10000;
+double packing_fraction = 0.2;
 const double diameter = 1.0;
-const double delta = 0.1;
 const char* init_filename = "fcc_108.dat";
-double temperature = 5.;
+double temperature = 100.;
 /* Simulation variables */
 
 double rCut, rCut2, eCut;
 const double mass = 1.;
+const double deltaT = 0.001;
+
 int n_particles = 0;
 double radius;
 double particle_volume;
 double r[N][NDIM];
 double v[N][NDIM];
 double box[NDIM];
+
+double rPrevT[N][NDIM];
 
 double f[N][NDIM];
 double en;
@@ -138,7 +141,30 @@ void init() {
 			v[i][d] *= fs;
 		}
 	}
+
 }
+
+void integrate() {
+	//double sumV = 0;
+	double sumV2 = 0;
+
+	for (int i = 0; i < n_particles; i++) {
+		for (int d = 0; d < NDIM; ++d) {
+			double rTemp_d = 2. * r[i][d] - rPrevT[i][d] + deltaT * deltaT * f[i][d];
+			v[i][d] = (rTemp_d - rPrevT[i][d]) / (2. * deltaT);
+			sumV2 += (v[i][d] * v[i][d]);// / n_particles;
+			rPrevT[i][d] = r[i][d];
+			r[i][d] = rTemp_d;
+			//periodic BC
+			r[i][d] -= floor(r[i][d] / box[d]) * box[d];
+
+		}
+	}
+	temperature = sumV2 / (3.*n_particles);
+	double eTot = (en + 0.5 * sumV2) / n_particles;
+
+}
+
 
 void force() {
 	//re-initialise energy and forces
@@ -151,47 +177,30 @@ void force() {
 	//calculate forces
 	for (int i = 0; i < n_particles - 1; i++) {
 		for (int j = i + 1; j < n_particles; j++) {
+
+			
 			double r_ij2 = 0.;
 			double r_ij[NDIM] = { 0. };
 			for (int d = 0; d < NDIM; d++) {
 				double r_ij_d = r[i][d] - r[j][d];
 				r_ij_d -= box[d] * (int)(2.0 * r_ij_d / box[d]);//periodic BC
-				r_ij2 += r_ij_d;
+				r_ij2 += r_ij_d * r_ij_d;
 				r_ij[d] = r_ij_d;
-			}
+			}	
 			if (r_ij2 < rCut2) {
-				double r2i = 1. / r_ij2;
-				double r6i = pow(r2i, 3.);
-				double ff = 48. * r2i * r6i * (r6i - 0.5);
+				double r6 = 1.0 / (r_ij2 * r_ij2 * r_ij2);
+				double ff = 24.0 * r6 * (2.0 * r6 - 1.0);
+
 				for (int d = 0; d < NDIM; d++) {
 					f[i][d] += ff * r_ij[d];
 					f[j][d] -= ff * r_ij[d];
-					en += 4. * r6i * (r6i - 1.) - eCut;
+					en += 4.0 * r6 * (r6 - 1.0) - eCut;
 				}
 			}
 		}
 	}
-}
+}//blows up!
 
-
-void integrate() {
-	double sumV = 0;
-	double sumV2 = 0;
-	double xm[N][NDIM];
-	for (int i = 0; i < n_particles; i++) {
-		for (int d = 0; d < NDIM; ++d) {
-			double xx = 2. * r[i][d] - xm[i][d] + delta * delta * f[i][d];
-			double vi = (xx - xm[i][d]) / (2. * delta);
-			sumV2 += vi * vi;
-			xm[i][d] = r[i][d];
-			r[i][d] -= xx;
-			//periodic BC
-			r[i][d] -= floor(r[i][d] / box[d]) * box[d];
-
-		}
-	}
-	temperature = sumV2 / (3. * n_particles);
-}
 
 void initCutoff() {
 	rCut = 0.5 * box[0];
@@ -202,26 +211,35 @@ void initCutoff() {
 }
 
 int main() {
+	//particle volume
 	radius = 0.5 * diameter;
-
 	if (NDIM == 3) particle_volume = M_PI * pow(diameter, 3.0) / 6.0;
 	else if (NDIM == 2) particle_volume = M_PI * pow(radius, 2.0);
 	else { printf("Number of dimensions NDIM = %d, not supported.", NDIM); return 0; }
+
+	//set start parameters
 	read_data(init_filename);
 	set_packing_fraction();
 	initCutoff();
-	mt19937 _rng(std::chrono::steady_clock::now().time_since_epoch().count());
 	init();
+	mt19937 _rng(std::chrono::steady_clock::now().time_since_epoch().count());
 
 	double t = 0.0;
-	double deltaT = 0.0001;
 	double tMax = 1000.;
 	double outputT = 100.;
-	for (double t = 0.0; t < tMax; t += deltaT) {
+
+	for (int i = 0; i < n_particles; i++) {
+		for (int d = 0; d < NDIM; ++d) {
+			rPrevT[i][d] = r[i][d];
+		}
+	}
+
+	//for (double t = 0.0; t < tMax; t += deltaT) {
+	for (int i = 0; i < mc_steps; i++) {
+		t = i * deltaT;
 		force();
 		integrate();
-
-		if ((int)t % output_steps == 0) {
+		if (mc_steps % output_steps == 0) {
 			cout << "t = " << t << ", E = " << en << ", temperature = " << temperature << endl;
 			write_data((int)(t*10000));
 		}
