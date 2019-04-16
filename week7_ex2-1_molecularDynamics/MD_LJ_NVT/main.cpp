@@ -5,64 +5,34 @@
 #include <string>
 #include <random>
 #include <chrono>
-#include <assert.h>
-
 using std::cout; using std::endl;
-using std::ifstream; using std::ofstream;
-using std::to_string;
-using std::mt19937; using std::uniform_int_distribution; using std::uniform_real_distribution;
 
 const double M_PI = 3.141592653589793238463;
 const int NDIM = 3;
 const int N = 520;
-/* Initialization variables */
-const int mc_steps = 1000000;
-const int output_steps = 10000;
-double packing_fraction = 0.2;
-const double diameter = 1.0;
-const char* init_filename = "fcc_108.dat";
-double temperature = 100.;
-/* Simulation variables */
 
-double rCut, rCut2, eCut;
-const double mass = 1.;
-const double deltaT = 0.001;
+//Step_variables
+const double diameter = 1.0;
+double temperature = 1.;
+
+//MD_Variables
+double r_cut, r_cut2, e_cut;
+const double delta_t = 0.00001;
 
 int n_particles = 0;
-double radius;
 double particle_volume;
+double e_potential, e_total;
+
 double r[N][NDIM];
 double v[N][NDIM];
 double box[NDIM];
-
-double rPrevT[N][NDIM];
-
+double r_prev_t[N][NDIM];
 double f[N][NDIM];
-double en;
 
-mt19937 _rng;
-
-void prAr(double arr[], int n) {
-	cout << '{';
-	for (int i = 0; i < n - 1; i++) {
-		cout << arr[i];
-	}
-	cout << arr[n - 1] << endl;
-}
-void prAr2D(double arr[][NDIM], int n, int dim) {
-	cout << '{';
-	for (int i = 0; i < n - 1; i++) {
-		cout << *arr[i];
-		if ((i + 1) % dim == 0) {
-			cout << endl;
-		}
-	}
-	cout << arr[n - 1] << endl;
-}
-
+std::mt19937 rng;
 
 void read_data(const char* filename) {
-	ifstream ifs(filename);
+	std::ifstream ifs(filename);
 	if (ifs.fail()) {
 		cout << "File doesn't exist" << endl;
 		return;
@@ -87,8 +57,8 @@ void read_data(const char* filename) {
 }
 
 void write_data(int step) {
-	ofstream myfile;
-	myfile.open("coords_step" + to_string(step) + ".output");
+	std::ofstream myfile;
+	myfile.open("coords_step" + std::to_string(step) + ".output");
 	int d, n;
 	myfile << n_particles << endl;
 	for (d = 0; d < NDIM; ++d) {
@@ -103,11 +73,11 @@ void write_data(int step) {
 	myfile.close();
 }
 
-void set_packing_fraction(void) {
+void set_packing_fraction(double packingFraction) {
 	double volume = 1.0;
 	int d, n;
 	for (d = 0; d < NDIM; ++d) { volume *= box[d]; }
-	double target_volume = (n_particles * particle_volume) / packing_fraction;
+	const double target_volume = (n_particles * particle_volume) / packingFraction;
 	double scale_factor = pow(target_volume / volume, 1.0 / NDIM);
 	for (n = 0; n < n_particles; ++n) {
 		for (d = 0; d < NDIM; ++d) { r[n][d] *= scale_factor; }
@@ -116,134 +86,137 @@ void set_packing_fraction(void) {
 }
 
 void init() {
-	double vCOM[NDIM] = { 0 };
-	double sumV2 = 0.;
+	double v_com[NDIM] = { 0. };
+	double sum_v2 = 0.;
 	//calculate COM momentum
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
-			v[i][d] = uniform_real_distribution<double>(-1., 1.)(_rng);
-			vCOM[d] += v[i][d] / (double)n_particles;
+			v[i][d] = std::uniform_real_distribution<double>(-1., 1.)(rng);
+			v_com[d] += v[i][d] / (double)n_particles;
 		}
 	}
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
 			//subtract COM momentum
-			v[i][d] -= vCOM[d];		
+			v[i][d] -= v_com[d];		
 			//calculate v^2 / N
-			sumV2 += (v[i][d] * v[i][d]) / (double)n_particles;
+			sum_v2 += (v[i][d] * v[i][d]) / (double)n_particles;
 		}
 	}
 	//calculate fs
-	double fs = sqrt(3. * temperature / sumV2);
+	double fs = sqrt(3. * temperature / sum_v2);
 	//scale vi
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
 			v[i][d] *= fs;
 		}
 	}
-
 }
 
-void integrate() {
-	//double sumV = 0;
-	double sumV2 = 0;
-
-	for (int i = 0; i < n_particles; i++) {
-		for (int d = 0; d < NDIM; ++d) {
-			double rTemp_d = 2. * r[i][d] - rPrevT[i][d] + deltaT * deltaT * f[i][d];
-			v[i][d] = (rTemp_d - rPrevT[i][d]) / (2. * deltaT);
-			sumV2 += (v[i][d] * v[i][d]);// / n_particles;
-			rPrevT[i][d] = r[i][d];
-			r[i][d] = rTemp_d;
-			//periodic BC
-			r[i][d] -= floor(r[i][d] / box[d]) * box[d];
-
-		}
-	}
-	temperature = sumV2 / (3.*n_particles);
-	double eTot = (en + 0.5 * sumV2) / n_particles;
-
+void init_cutoff() {
+	r_cut = 0.5 * box[0];
+	r_cut2 = r_cut * r_cut;
+	double r_cuti6 = 1. / (pow(r_cut, 6.));
+	e_cut = 4. * (r_cuti6 * (r_cuti6 - 1.));
 }
-
 
 void force() {
 	//re-initialise energy and forces
-	en = 0.;
+	e_potential = 0.;
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
-			f[i][d] = 0;
+			f[i][d] = 0.;
 		}
 	}
 	//calculate forces
 	for (int i = 0; i < n_particles - 1; i++) {
-		for (int j = i + 1; j < n_particles; j++) {
-
-			
+		for (int j = i + 1; j < n_particles; j++) {			
 			double r_ij2 = 0.;
 			double r_ij[NDIM] = { 0. };
 			for (int d = 0; d < NDIM; d++) {
-				double r_ij_d = r[i][d] - r[j][d];
-				r_ij_d -= box[d] * (int)(2.0 * r_ij_d / box[d]);//periodic BC
-				r_ij2 += r_ij_d * r_ij_d;
-				r_ij[d] = r_ij_d;
+				r_ij[d] = r[i][d] - r[j][d];
+				r_ij[d] -= box[d] * (int)(2.0 * r_ij[d] / box[d]);//periodic BC
+				r_ij2 += r_ij[d] * r_ij[d];
+				//r_ij[d] = r_ij_d;
 			}	
-			if (r_ij2 < rCut2) {
+			if (r_ij2 < r_cut2) {
 				double r6 = 1.0 / (r_ij2 * r_ij2 * r_ij2);
 				double ff = 24.0 * r6 * (2.0 * r6 - 1.0);
 
 				for (int d = 0; d < NDIM; d++) {
 					f[i][d] += ff * r_ij[d];
 					f[j][d] -= ff * r_ij[d];
-					en += 4.0 * r6 * (r6 - 1.0) - eCut;
+					e_potential += 4.0 * r6 * (r6 - 1.0) - e_cut;
 				}
 			}
 		}
 	}
-}//blows up!
-
-
-void initCutoff() {
-	rCut = 0.5 * box[0];
-	rCut2 = rCut * rCut;
-	double rCutminus6 = 1 / (pow(rCut, 6.));
-	eCut = 4. * (rCutminus6 * (rCutminus6 - 1.));
-
 }
 
+
+void integrate() {
+	double sum_v2 = 0.;
+
+	for (int i = 0; i < n_particles; i++) {
+		double r_temp[NDIM] = { 0. };
+		for (int d = 0; d < NDIM; ++d) {
+			r_temp[d] = 2. * r[i][d] - r_prev_t[i][d] + delta_t * delta_t * f[i][d];
+		}
+		for (int d = 0; d < NDIM; ++d) {			
+			v[i][d] = (r_temp[d] - r_prev_t[i][d]) / (2. * delta_t);
+			sum_v2 += (v[i][d] * v[i][d]);// / n_particles;
+		}
+		for (int d = 0; d < NDIM; ++d) {
+			r_prev_t[i][d] = r[i][d];
+			r[i][d] = r_temp[d];
+			//periodic BC
+			r[i][d] -= floor(r[i][d] / box[d]) * box[d];
+		}
+	}
+	temperature = sum_v2 / (3. * n_particles);
+	e_total = (e_potential + 0.5 * sum_v2); //e_total = e_potential + e_kin
+	double aa = 0.;
+}
+
+
 int main() {
+	const int mc_steps = 1000000;
+	const int output_steps = 100;
+	double packing_fraction = 0.1;
+	const char* init_filename = "fcc_108.dat";
+
 	//particle volume
-	radius = 0.5 * diameter;
 	if (NDIM == 3) particle_volume = M_PI * pow(diameter, 3.0) / 6.0;
-	else if (NDIM == 2) particle_volume = M_PI * pow(radius, 2.0);
-	else { printf("Number of dimensions NDIM = %d, not supported.", NDIM); return 0; }
+	else if (NDIM == 2) particle_volume = 0.25 * M_PI * diameter * diameter;
+	else { cout << "Number of dimensions NDIM = " << NDIM << ", not supported."; return 0; }
 
 	//set start parameters
 	read_data(init_filename);
-	set_packing_fraction();
-	initCutoff();
+	set_packing_fraction(packing_fraction);
+	init_cutoff();
 	init();
-	mt19937 _rng(std::chrono::steady_clock::now().time_since_epoch().count());
+	std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 
-	double t = 0.0;
-	double tMax = 1000.;
-	double outputT = 100.;
+	double t = 0.0;	
 
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
-			rPrevT[i][d] = r[i][d];
+			r_prev_t[i][d] = r[i][d]-v[i][d]*delta_t;
 		}
 	}
+	std::ofstream myfile;
+	myfile.open("energy.output");
 
-	//for (double t = 0.0; t < tMax; t += deltaT) {
 	for (int i = 0; i < mc_steps; i++) {
-		t = i * deltaT;
+		t = i * delta_t;
 		force();
 		integrate();
-		if (mc_steps % output_steps == 0) {
-			cout << "t = " << t << ", E = " << en << ", temperature = " << temperature << endl;
+		if (i % output_steps == 0) {
+			cout << "t = " << t << ", E = " << e_total << ", temperature = " << temperature << '\n';
+			myfile << t << ',' << e_total << ',' << temperature << '\n';
 			write_data((int)(t*10000));
 		}
 	}
-
+	myfile.close();
 	return 0;
 }
