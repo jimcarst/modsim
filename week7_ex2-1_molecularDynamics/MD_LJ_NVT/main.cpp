@@ -13,7 +13,7 @@ const int N = 520;
 
 //Step_variables
 const double diameter = 1.0;
-double temperature = 10.;
+double temperature = 4.;
 
 //MD_Variables
 double r_cut, r_cut2, e_cut;
@@ -114,9 +114,10 @@ void init() {
 }
 
 void init_cutoff() {
-	r_cut = 0.5 * box[0];
+	//r_cut = 0.5 * box[0];
+	r_cut = 2.5 * diameter;
 	r_cut2 = r_cut * r_cut;
-	double r_cuti6 = 1. / (pow(r_cut, 6.));
+	double r_cuti6 = 1. / (pow(r_cut, 6.));//2.5 sigma
 	e_cut = 4. * (r_cuti6 * (r_cuti6 - 1.));
 }
 
@@ -169,8 +170,15 @@ void integrate() {
 		for (int d = 0; d < NDIM; ++d) {
 			r_temp[d] = 2. * r[i][d] - r_prev_t[i][d] + delta_t * delta_t * f[i][d];
 		}
-		for (int d = 0; d < NDIM; ++d) {			
-			v[i][d] = (r_temp[d] - r_prev_t[i][d]) / (2. * delta_t);
+		for (int d = 0; d < NDIM; ++d) {		
+			double delta_r = r_temp[d] - r_prev_t[i][d];
+			if (delta_r > 0.5 * box[d]) {// Nearest Image Convention
+				delta_r -= box[d];
+			}
+			if (delta_r < -0.5 * box[d]) {
+				delta_r += box[d];
+			}			
+			v[i][d] = delta_r / (2. * delta_t);
 			sum_v2 += (v[i][d] * v[i][d]);// / n_particles;
 		}
 		for (int d = 0; d < NDIM; ++d) {
