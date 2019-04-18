@@ -13,7 +13,7 @@ const int N = 520;
 
 //Step_variables
 const double diameter = 1.0;
-double temperature = 1.;
+double temperature = 10.;
 
 //MD_Variables
 double r_cut, r_cut2, e_cut;
@@ -60,15 +60,15 @@ void write_data(int step) {
 	std::ofstream myfile;
 	myfile.open("coords_step" + std::to_string(step) + ".output");
 	int d, n;
-	myfile << n_particles << endl;
+	myfile << n_particles << "\n";
 	for (d = 0; d < NDIM; ++d) {
-		myfile << 0.0 << ' ' << box[d] << endl;
+		myfile << 0.0 << ' ' << box[d] << "\n";
 	}
 	for (n = 0; n < n_particles; ++n) {
 		for (d = 0; d < NDIM; ++d) {
 			myfile << r[n][d] << ' ';
 		}
-		myfile << diameter << endl;
+		myfile << diameter << "\n";
 	}
 	myfile.close();
 }
@@ -135,7 +135,14 @@ void force() {
 			double r_ij[NDIM] = { 0. };
 			for (int d = 0; d < NDIM; d++) {
 				r_ij[d] = r[i][d] - r[j][d];
-				r_ij[d] -= box[d] * (int)(2.0 * r_ij[d] / box[d]);//periodic BC
+				//r_ij[d] -= box[d] * (int)(2.0 * r_ij[d] / box[d]);//Nearest Image Convention
+				if (r_ij[d] > 0.5 * box[d]) {
+					r_ij[d] -= box[d];
+				}
+				if (r_ij[d] < -0.5 * box[d]) {
+					r_ij[d] += box[d];
+				}
+				
 				r_ij2 += r_ij[d] * r_ij[d];
 				//r_ij[d] = r_ij_d;
 			}	
@@ -146,7 +153,7 @@ void force() {
 				for (int d = 0; d < NDIM; d++) {
 					f[i][d] += ff * r_ij[d];
 					f[j][d] -= ff * r_ij[d];
-					e_potential += 4.0 * r6 * (r6 - 1.0) - e_cut;
+					e_potential += 1.0 * r6 * (r6 - 1.0) - 0.25*e_cut;
 				}
 			}
 		}
@@ -168,14 +175,13 @@ void integrate() {
 		}
 		for (int d = 0; d < NDIM; ++d) {
 			r_prev_t[i][d] = r[i][d];
-			r[i][d] = r_temp[d];
-			//periodic BC
-			r[i][d] -= floor(r[i][d] / box[d]) * box[d];
+			r[i][d] = r_temp[d];			
+			r[i][d] -= floor(r[i][d] / box[d]) * box[d];//periodic BC
 		}
 	}
 	temperature = sum_v2 / (3. * n_particles);
 	e_total = (e_potential + 0.5 * sum_v2); //e_total = e_potential + e_kin
-	double aa = 0.;
+	//cout <<"{"<< e_potential << ", " << sum_v2 << "},\n";
 }
 
 
@@ -184,6 +190,8 @@ int main() {
 	const int output_steps = 100;
 	double packing_fraction = 0.1;
 	const char* init_filename = "fcc_108.dat";
+
+	std::ios::sync_with_stdio(false);
 
 	//particle volume
 	if (NDIM == 3) particle_volume = M_PI * pow(diameter, 3.0) / 6.0;
@@ -212,8 +220,8 @@ int main() {
 		force();
 		integrate();
 		if (i % output_steps == 0) {
-			cout << "t = " << t << ", E = " << e_total << ", temperature = " << temperature << '\n';
-			myfile << t << ',' << e_total << ',' << temperature << '\n';
+			cout << "t = " << t << ", E = " << e_total << ", temperature = " << temperature << "\n";
+			myfile << t << ',' << e_total << ',' << temperature << "\n";
 			write_data((int)(t*10000));
 		}
 	}
