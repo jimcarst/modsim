@@ -14,22 +14,24 @@ const int N = 520;
 //Step_variables
 const double diameter = 1.0;
 double temperature = 4.;
-
+double temp_instantaneous;
 //MD_Variables
 double r_cut, r_cut2, e_cut;
-const double delta_t = 0.00001;
+const double delta_t = 0.001;
+double nu = 0.01 / delta_t;//nu * delta_t = 0.1
 
 int n_particles = 0;
 double particle_volume;
-double e_potential, e_total;
+double e_potential, e_total, e_kinetic;
 
 double r[N][NDIM];
 double v[N][NDIM];
 double box[NDIM];
 double r_prev_t[N][NDIM];
 double f[N][NDIM];
-
 std::mt19937 rng;
+std::uniform_real_distribution<double> random_zero_one(0.0, 1.0);
+std::uniform_real_distribution<double> random_minusOne_one(-1.0, 1.0);
 
 void read_data(const char* filename) {
 	std::ifstream ifs(filename);
@@ -91,7 +93,7 @@ void init() {
 	//calculate COM momentum
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
-			v[i][d] = std::uniform_real_distribution<double>(-1., 1.)(rng);
+			v[i][d] = random_minusOne_one(rng);
 			v_com[d] += v[i][d] / (double)n_particles;
 		}
 	}
@@ -148,13 +150,16 @@ void force() {
 				//r_ij[d] = r_ij_d;
 			}	
 			if (r_ij2 < r_cut2) {
-				double r6 = 1.0 / (r_ij2 * r_ij2 * r_ij2);
-				double ff = 24.0 * r6 * (2.0 * r6 - 1.0);
+				double r2i = 1.0 / r_ij2;
+				double r6i = r2i * r2i * r2i;
+				//double ff = 24.0 * r6 * (2.0 * r6 - 1.0);
+				double ff = 48.0 * r2i * r6i * (r6i - 0.5);
 
 				for (int d = 0; d < NDIM; d++) {
 					f[i][d] += ff * r_ij[d];
 					f[j][d] -= ff * r_ij[d];
-					e_potential += 1.0 * r6 * (r6 - 1.0) - 0.25*e_cut;
+					// e_potential += 1.0 * r6i * (r6i - 1.0) - 0.25 * e_cut;
+					e_potential += 4.0 * r6i * (r6i - 1.0) - e_cut;
 				}
 			}
 		}
@@ -170,7 +175,8 @@ void integrate() {
 		for (int d = 0; d < NDIM; ++d) {
 			r_temp[d] = 2. * r[i][d] - r_prev_t[i][d] + delta_t * delta_t * f[i][d];
 		}
-		for (int d = 0; d < NDIM; ++d) {		
+		for (int d = 0; d < NDIM; ++d) {
+			r_temp[d] -= floor(r_temp[d] / box[d]) * box[d];//periodic BC
 			double delta_r = r_temp[d] - r_prev_t[i][d];
 			if (delta_r > 0.5 * box[d]) {// Nearest Image Convention
 				delta_r -= box[d];
@@ -184,17 +190,58 @@ void integrate() {
 		for (int d = 0; d < NDIM; ++d) {
 			r_prev_t[i][d] = r[i][d];
 			r[i][d] = r_temp[d];			
-			r[i][d] -= floor(r[i][d] / box[d]) * box[d];//periodic BC
+			//r[i][d] -= floor(r[i][d] / box[d]) * box[d];//periodic BC
 		}
 	}
 	temperature = sum_v2 / (3. * n_particles);
+	e_kinetic = 0.5 * sum_v2;
 	e_total = (e_potential + 0.5 * sum_v2); //e_total = e_potential + e_kin
 	//cout <<"{"<< e_potential << ", " << sum_v2 << "},\n";
 }
 
 
+//alles naar velocity verlet omzetten. met nu=0 krijg je weer zonder heat bath
+void integrate_anderson(int step) {
+	double sum_v2 = 0.;
+	if (step == 1) {
+		for (int i = 0; i < n_particles; i++) {
+			for (int d = 0; d < NDIM; d++) {
+				r[i][d] = r[i][d] + delta_t * v[i][d] + 0.5 * delta_t * delta_t * f[i][d];
+				r[i][d] -= floor(r[i][d] / box[d]) * box[d];//periodic BC
+				v[i][d] = v[i][d] + 0.5 * delta_t * f[i][d];
+			}
+		}
+	}
+	else if (step == 2) {
+		
+		double sigma = sqrt(temperature);
+		std::normal_distribution<double> gaussian(0.0, sigma);
+		for (int i = 0; i < n_particles; i++) {
+			for (int d = 0; d < NDIM; d++) {
+				double random = random_zero_one(rng);
+				if (random < nu * delta_t) {
+					v[i][d] = gaussian(rng);
+				}
+			}
+		}
+		temp_instantaneous = 0.;
+		for (int i = 0; i < n_particles; i++) {
+			for (int d = 0; d < NDIM; d++) {
+				v[i][d] += 0.5 * delta_t * f[i][d];
+				temp_instantaneous += v[i][d] * v[i][d];
+			}
+		}
+		e_kinetic = 0.5 * temp_instantaneous;
+		e_total = (e_potential + 0.5 * temp_instantaneous); //e_total = e_potential + e_kin
+		temp_instantaneous /= (3. * n_particles);//s = 3.
+	}
+	else {
+		cout << "Misuse of integrateAnderson\n";
+	}
+}
+
 int main() {
-	const int mc_steps = 1000000;
+	const int mc_steps = 100000;
 	const int output_steps = 100;
 	double packing_fraction = 0.1;
 	const char* init_filename = "fcc_108.dat";
@@ -222,14 +269,16 @@ int main() {
 	}
 	std::ofstream myfile;
 	myfile.open("energy.output");
-
+	force();
 	for (int i = 0; i < mc_steps; i++) {
 		t = i * delta_t;
+		integrate_anderson(1);
 		force();
-		integrate();
+		integrate_anderson(2);
 		if (i % output_steps == 0) {
-			cout << "t = " << t << ", E = " << e_total << ", temperature = " << temperature << "\n";
-			myfile << t << ',' << e_total << ',' << temperature << "\n";
+			cout << "t = " << t << ", E = " << e_total << ", temp = " << temperature <<", temp_inst = "<<temp_instantaneous<< ", e_kin = " << e_kinetic << ", e_pot = " << e_potential << "\n";
+			//cout <<"{"<< e_potential << ", " << e_kinetic << "},\n";
+			myfile << t << ',' << e_total << ',' << temp_instantaneous << "\n";
 			write_data((int)(t*10000));
 		}
 	}
