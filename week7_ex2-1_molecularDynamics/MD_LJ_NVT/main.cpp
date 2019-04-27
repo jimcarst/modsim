@@ -4,7 +4,8 @@
 #include <string>
 #include <random>
 #include <chrono>
-using std::cout; using std::endl;
+#include <iomanip>
+using std::cout; using std::endl; using std::setw;
 const double M_PI = 3.141592653589793238463;
 const int NDIM = 3;
 const int N = 520;
@@ -14,7 +15,7 @@ double temperature = 1.;
 double temp_instantaneous;
 //MD_Variables
 double r_cut, r_cut2, e_cut;
-const double delta_t = 0.001;
+const double delta_t = 0.0001;
 double nu = 0.0 / delta_t;//nu * delta_t = 0.1
 int n_particles = 0;
 double particle_volume;
@@ -29,6 +30,7 @@ double f[N][NDIM];
 std::mt19937 rng;
 std::uniform_real_distribution<double> random_zero_one(0.0, 1.0);
 std::uniform_real_distribution<double> random_minusOne_one(-1.0, 1.0);
+std::normal_distribution<double> gaussian(0.0, sqrt(temperature));
 
 void read_data(const char* filename) {
 	std::ifstream ifs(filename);
@@ -56,20 +58,20 @@ void read_data(const char* filename) {
 }
 
 void write_data(int step) {
-	std::ofstream myfile;
-	myfile.open("coords_step" + std::to_string(step) + ".output");
+	std::ofstream energy_file;
+	energy_file.open("coords_step" + std::to_string(step) + ".output");
 	int d, n;
-	myfile << n_particles << "\n";
+	energy_file << n_particles << "\n";
 	for (d = 0; d < NDIM; ++d) {
-		myfile << 0.0 << ' ' << box[d] << "\n";
+		energy_file << 0.0 << ' ' << box[d] << "\n";
 	}
 	for (n = 0; n < n_particles; ++n) {
 		for (d = 0; d < NDIM; ++d) {
-			myfile << r[n][d] << ' ';
+			energy_file << r[n][d] << ' ';
 		}
-		myfile << diameter << "\n";
+		energy_file << diameter << "\n";
 	}
-	myfile.close();
+	energy_file.close();
 }
 
 void set_packing_fraction(double packingFraction) {
@@ -143,14 +145,12 @@ void force() {
 				if (r_ij[d] < -0.5 * box[d]) {
 					r_ij[d] += box[d];
 				}
-
 				r_ij2 += r_ij[d] * r_ij[d];
 			}
 			if (r_ij2 < r_cut2) {
 				double r2i = 1.0 / r_ij2;
 				double r6i = r2i * r2i * r2i;
 				double ff = 48.0 * r2i * r6i * (r6i - 0.5);
-
 				for (int d = 0; d < NDIM; d++) {
 					f[i][d] += ff * r_ij[d];
 					f[j][d] -= ff * r_ij[d];
@@ -178,10 +178,7 @@ void integrate_anderson(int step) {
 			for (int d = 0; d < NDIM; d++) {
 				v[i][d] += 0.5 * delta_t * f[i][d];
 			}
-		}
-
-		double sigma = sqrt(temperature);
-		std::normal_distribution<double> gaussian(0.0, sigma);
+		}		
 		for (int i = 0; i < n_particles; i++) {
 			for (int d = 0; d < NDIM; d++) {
 				double random = random_zero_one(rng);
@@ -245,7 +242,7 @@ void sample() {
 }
 
 int main() {
-	const int mc_steps = 50000;
+	const int mc_steps = 100000;
 	const int output_steps = 100;
 	double packing_fraction = 0.1;
 	const char* init_filename = "fcc_108.dat";
@@ -263,8 +260,9 @@ int main() {
 
 	double t = 0.0;
 
-	std::ofstream myfile;
-	myfile.open("energy.output");
+	std::ofstream energy_file, v_v_a_file;
+	energy_file.open("energy.output");
+	v_v_a_file.open("vvautocorr.output");
 	force();
 	v_v_autocorrelation = 0.0;
 	double D = 0.0;
@@ -278,13 +276,16 @@ int main() {
 		//cout << VAF << ", \n";
 		D += (1. / (double)NDIM) * delta_t * v_v_autocorrelation;
 		if (i % output_steps == 0) {
-			//cout << "t = " << t << ", E = " << e_total << ", temp = " << temperature <<", temp_inst = "<<temp_instantaneous<< ", e_kin = " << e_kinetic << ", e_pot = " << e_potential << "\n";
+			cout << "t = " << t <<  ", E = " << e_total << ", temp = " << temperature 
+				<< ", temp_inst = "	<< temp_instantaneous << ", e_kin = " << e_kinetic 
+				<< ", e_pot = " << e_potential << "\n";
 			//cout << "{" << e_potential << ", " << e_kinetic << "},\n";
-			myfile << t << ',' << e_total << ',' << temp_instantaneous << "\n";
-			write_data((int)(t * 10000));
+			energy_file << t << ',' << e_total << ',' << temp_instantaneous << "\n";
+			v_v_a_file << v_v_autocorrelation << ", \n";
+			//write_data((int)(t * 10000));
 		}
 	}
 	cout << "D = " << D << "\n";
-	myfile.close();
+	energy_file.close();
 	return 0;
 }
