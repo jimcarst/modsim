@@ -15,7 +15,7 @@
 /* Initialization variables */
 const int mc_steps = 10000;
 const int output_steps = 1000;
-double density = 1.1;
+double density = 0.1;
 const double delta = 0.1;
 const double r_cut = 2.1;
 double beta = 1.0;
