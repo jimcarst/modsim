@@ -84,7 +84,7 @@ void set_packing_fraction(double packingFraction) {
 	for (d = 0; d < NDIM; ++d) { box[d] *= scale_factor; }
 }
 
-void init() {
+void init_velocities_positions() {
 	double v_com[NDIM] = { 0. };
 	double sum_v2 = 0.;
 	//calculate COM momentum
@@ -108,6 +108,8 @@ void init() {
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
 			v[i][d] *= fs;
+			r_prev_t[i][d] = r[i][d] - v[i][d] * delta_t;
+			v0[i][d] = v[i][d];
 		}
 	}
 }
@@ -122,7 +124,6 @@ void init_cutoff() {
 
 void force() {
 	//re-initialise energy and forces
-	e_potential = 0.;
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
 			f[i][d] = 0.;
@@ -135,7 +136,7 @@ void force() {
 			double r_ij[NDIM] = { 0. };
 			for (int d = 0; d < NDIM; d++) {
 				r_ij[d] = r[i][d] - r[j][d];
-				//r_ij[d] -= box[d] * (int)(2.0 * r_ij[d] / box[d]);//Nearest Image Convention
+				//Nearest Image Convention
 				if (r_ij[d] > 0.5 * box[d]) {
 					r_ij[d] -= box[d];
 				}
@@ -144,19 +145,15 @@ void force() {
 				}
 
 				r_ij2 += r_ij[d] * r_ij[d];
-				//r_ij[d] = r_ij_d;
 			}
 			if (r_ij2 < r_cut2) {
 				double r2i = 1.0 / r_ij2;
 				double r6i = r2i * r2i * r2i;
-				//double ff = 24.0 * r6 * (2.0 * r6 - 1.0);
 				double ff = 48.0 * r2i * r6i * (r6i - 0.5);
 
 				for (int d = 0; d < NDIM; d++) {
 					f[i][d] += ff * r_ij[d];
 					f[j][d] -= ff * r_ij[d];
-					//e_potential += 0.25 * (4.0 * r6i * (r6i - 1.0) - 0.25 * e_cut);
-			//		e_potential += 4.0 * r6i * (r6i - 1.0) - e_cut;
 				}
 			}
 		}
@@ -180,7 +177,6 @@ void integrate_anderson(int step) {
 		for (int i = 0; i < n_particles; i++) {
 			for (int d = 0; d < NDIM; d++) {
 				v[i][d] += 0.5 * delta_t * f[i][d];
-				//temp_instantaneous += v[i][d] * v[i][d];
 			}
 		}
 
@@ -196,13 +192,9 @@ void integrate_anderson(int step) {
 		}
 		for (int i = 0; i < n_particles; i++) {
 			for (int d = 0; d < NDIM; d++) {
-				//	v[i][d] += 0.5 * delta_t * f[i][d];
 				temp_instantaneous += v[i][d] * v[i][d];
 			}
 		}
-
-		//e_kinetic = 0.5 * temp_instantaneous;
-		//e_total = (e_potential + 0.5 * temp_instantaneous); //e_total = e_potential + e_kin
 		temp_instantaneous /= (3. * n_particles);//s = 3.
 	}
 	else {
@@ -221,7 +213,6 @@ void sample() {
 			double r_ij[NDIM] = { 0. };
 			for (int d = 0; d < NDIM; d++) {
 				r_ij[d] = r[i][d] - r[j][d];
-				//r_ij[d] -= box[d] * (int)(2.0 * r_ij[d] / box[d]);//Nearest Image Convention
 				if (r_ij[d] > 0.5 * box[d]) {
 					r_ij[d] -= box[d];
 				}
@@ -242,19 +233,15 @@ void sample() {
 	}
 	//kinetic energy
 	double sum_v2 = 0.;
+	v_v_autocorrelation = 0.;
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; d++) {
 			sum_v2 += v[i][d] * v[i][d];
+			v_v_autocorrelation += v0[i][d] * v[i][d] / n_particles;
 		}
 	}
 	e_kinetic = 3 * 0.5 * sum_v2;
 	e_total = (e_potential + e_kinetic); //e_total = e_potential + e_kin
-	v_v_autocorrelation = 0.;
-	for (int i = 0; i < n_particles; i++) {
-		for (int d = 0; d < NDIM; d++) {
-			v_v_autocorrelation+=v0[i][d]*v[i][d]/n_particles;
-		}
-	}
 }
 
 int main() {
@@ -262,29 +249,20 @@ int main() {
 	const int output_steps = 100;
 	double packing_fraction = 0.1;
 	const char* init_filename = "fcc_108.dat";
-
 	std::ios::sync_with_stdio(false);
-
 	//particle volume
 	if (NDIM == 3) particle_volume = M_PI * pow(diameter, 3.0) / 6.0;
 	else if (NDIM == 2) particle_volume = 0.25 * M_PI * diameter * diameter;
 	else { cout << "Number of dimensions NDIM = " << NDIM << ", not supported."; return 0; }
-
 	//set start parameters
 	read_data(init_filename);
 	set_packing_fraction(packing_fraction);
 	init_cutoff();
-	init();
+	init_velocities_positions();
 	std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 
 	double t = 0.0;
 
-	for (int i = 0; i < n_particles; i++) {
-		for (int d = 0; d < NDIM; ++d) {
-			r_prev_t[i][d] = r[i][d] - v[i][d] * delta_t;
-			v0[i][d] = v[i][d];
-		}
-	}
 	std::ofstream myfile;
 	myfile.open("energy.output");
 	force();
