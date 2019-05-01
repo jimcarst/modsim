@@ -15,10 +15,10 @@
 /* Initialization variables */
 const int mc_steps = 10000;
 const int output_steps = 1000;
-double density = 0.1;
+double density = 0.01;
 const double delta = 0.1;
-const double r_cut = 2.1;
-double beta = 1.0;
+const double r_cut = 2.5;
+double beta = 1.0/4.0;
 const char*  init_filename = "fcc.dat";
 
 /* Simulation variables */
@@ -236,6 +236,7 @@ int main(int argc, char* argv[]) {
 					printf("Step %d. Move acceptance: %f.\n",
 						step, (double)accepted / ((double)n_particles * output_steps)
 					);
+					printf("Energy: %f\n", energy);
 					accepted = 0;
 					write_data(step);
 				}

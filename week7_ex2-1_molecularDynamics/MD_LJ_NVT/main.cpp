@@ -15,8 +15,8 @@ double temperature = 1.;
 double temp_instantaneous;
 //MD_Variables
 double r_cut, r_cut2, e_cut;
-const double delta_t = 0.0001;
-double nu = 0.0 / delta_t;//nu * delta_t = 0.1
+const double delta_t = 0.001;
+double nu = 0.2 / delta_t;//nu * delta_t = 0.1
 int n_particles = 0;
 double particle_volume;
 double e_potential, e_total, e_kinetic;
@@ -105,7 +105,7 @@ void init_velocities_positions() {
 		}
 	}
 	//calculate fs
-	double fs = sqrt(3.* temperature / sum_v2);
+	double fs = sqrt(3. * temperature / sum_v2);
 	//scale vi
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
@@ -150,8 +150,8 @@ void force() {
 			if (r_ij2 < r_cut2) {
 				double r2i = 1.0 / r_ij2;
 				double r6i = r2i * r2i * r2i;
-				double ff = 48.0 * r2i * r6i * (r6i - 0.5);
 				for (int d = 0; d < NDIM; d++) {
+					double ff = 24.0 * r2i * r6i * (2.0 * r6i - 1.0);
 					f[i][d] += ff * r_ij[d];
 					f[j][d] -= ff * r_ij[d];
 				}
@@ -178,10 +178,10 @@ void integrate_anderson(int step) {
 			for (int d = 0; d < NDIM; d++) {
 				v[i][d] += 0.5 * delta_t * f[i][d];
 			}
-		}		
+		}
 		for (int i = 0; i < n_particles; i++) {
+			double random = random_zero_one(rng);
 			for (int d = 0; d < NDIM; d++) {
-				double random = random_zero_one(rng);
 				if (random < nu * delta_t) {
 					v[i][d] = gaussian(rng);
 				}
@@ -221,13 +221,11 @@ void sample() {
 			if (r_ij2 < r_cut2) {
 				double r2i = 1.0 / r_ij2;
 				double r6i = r2i * r2i * r2i;
-				for (int d = 0; d < NDIM; d++) {
-					//e_potential += 0.25 * (4.0 * r6i * (r6i - 1.0) - 0.25 * e_cut);
-					e_potential += 4.0 * r6i * (r6i - 1.0) - e_cut;
-				}
+				e_potential += 4.0 * r6i * (r6i - 1.0) - e_cut;
 			}
 		}
 	}
+
 	//kinetic energy
 	double sum_v2 = 0.;
 	v_v_autocorrelation = 0.;
@@ -237,14 +235,14 @@ void sample() {
 			v_v_autocorrelation += v0[i][d] * v[i][d] / n_particles;
 		}
 	}
-	e_kinetic = 3 * 0.5 * sum_v2;
+	e_kinetic = 0.5 * sum_v2;
 	e_total = (e_potential + e_kinetic); //e_total = e_potential + e_kin
 }
 
 int main() {
 	const int mc_steps = 100000;
 	const int output_steps = 100;
-	double packing_fraction = 0.1;
+	double packing_fraction = 0.45;
 	const char* init_filename = "fcc_108.dat";
 	std::ios::sync_with_stdio(false);
 	//particle volume
@@ -273,19 +271,21 @@ int main() {
 		force();
 		integrate_anderson(2);
 		sample();
-		//cout << VAF << ", \n";
+		if (i < 100) {			
+			v_v_a_file << v_v_autocorrelation << ", \n";
+		}
 		D += (1. / (double)NDIM) * delta_t * v_v_autocorrelation;
 		if (i % output_steps == 0) {
 			cout << "t = " << t <<  ", E = " << e_total << ", temp = " << temperature 
 				<< ", temp_inst = "	<< temp_instantaneous << ", e_kin = " << e_kinetic 
 				<< ", e_pot = " << e_potential << "\n";
-			//cout << "{" << e_potential << ", " << e_kinetic << "},\n";
-			energy_file << t << ',' << e_total << ',' << temp_instantaneous << "\n";
+			energy_file << t << ',' << e_total << ',' << temp_instantaneous << ',' << e_potential << ',' << e_kinetic << "\n";
 			v_v_a_file << v_v_autocorrelation << ", \n";
-			//write_data((int)(t * 10000));
+			write_data((int)(t * 10000));
 		}
 	}
 	cout << "D = " << D << "\n";
 	energy_file.close();
+	v_v_a_file.close();
 	return 0;
 }

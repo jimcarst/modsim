@@ -11,19 +11,21 @@ const int NDIM = 3;
 const int N = 520;
 //Step_variables
 const double diameter = 1.0;
-double temperature = 1.;
+const double temperature = 1.;
 double temp_instantaneous;
 //MD_Variables
 double r_cut, r_cut2, e_cut;
-const double delta_t = 0.0001;
-double nu = 0.0 / delta_t;//nu * delta_t = 0.1
+const double delta_t = 0.000001;
+double gamma;
 int n_particles = 0;
 double particle_volume;
 double e_potential, e_total, e_kinetic;
 double r[N][NDIM];
+double r0[N][NDIM];
 double v[N][NDIM];
 double v0[N][NDIM];
 double v_v_autocorrelation;
+double mean_square_displacement;
 double box[NDIM];
 double r_prev_t[N][NDIM];
 double f[N][NDIM];
@@ -105,13 +107,14 @@ void init_velocities_positions() {
 		}
 	}
 	//calculate fs
-	double fs = sqrt(3.* temperature / sum_v2);
+	double fs = sqrt(3. * temperature / sum_v2);
 	//scale vi
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; ++d) {
 			v[i][d] *= fs;
 			r_prev_t[i][d] = r[i][d] - v[i][d] * delta_t;
 			v0[i][d] = v[i][d];
+			r0[i][d] = r[i][d];
 		}
 	}
 }
@@ -160,40 +163,29 @@ void force() {
 	}
 }
 
-//velocity verlet algorithm
-void integrate_anderson(int step) {
-	double sum_v2 = 0.;
-
+void integrate() {
 	for (int i = 0; i < n_particles; i++) {
+		double r_temp[NDIM] = { 0. };
 		for (int d = 0; d < NDIM; d++) {
-			r[i][d] = r[i][d] + delta_t * v[i][d] + 0.5 * delta_t * delta_t * f[i][d];
-			r[i][d] -= floor(r[i][d] / box[d]) * box[d];//periodic BC
-			v[i][d] = v[i][d] + 0.5 * delta_t * f[i][d];
+			double random = gaussian(rng);
+			r_temp[d] = r[i][d] + sqrt(2. * temperature * delta_t / gamma) * random + f[i][d] * delta_t / gamma;
+			r_temp[d] -= floor(r_temp[d] / box[d]) * box[d];//periodic BC
+			v[i][d] = sqrt(2. * temperature / gamma) * random + f[i][d] / gamma;
 		}
-	}
-
-	temp_instantaneous = 0.;
-	for (int i = 0; i < n_particles; i++) {
-		for (int d = 0; d < NDIM; d++) {
-			v[i][d] += 0.5 * delta_t * f[i][d];
-		}
-	}
-	for (int i = 0; i < n_particles; i++) {
-		for (int d = 0; d < NDIM; d++) {
-			double random = random_zero_one(rng);
-			if (random < nu * delta_t) {
-				v[i][d] = gaussian(rng);
+		for (int d = 0; d < NDIM; ++d) {
+			double delta_r = r_temp[d] - r[i][d];
+			if (delta_r > 0.5 * box[d]) {// Nearest Image Convention
+				delta_r -= box[d];
 			}
+			if (delta_r < -0.5 * box[d]) {
+				delta_r += box[d];
+			}
+		//	v[i][d] = delta_r / delta_t;
+			r[i][d] = r_temp[d];
 		}
 	}
-	for (int i = 0; i < n_particles; i++) {
-		for (int d = 0; d < NDIM; d++) {
-			temp_instantaneous += v[i][d] * v[i][d];
-		}
-	}
-	temp_instantaneous /= (3. * n_particles);//s = 3.
-
 }
+
 void sample() {
 	//potential energy
 	e_potential = 0.;
@@ -217,30 +209,33 @@ void sample() {
 			if (r_ij2 < r_cut2) {
 				double r2i = 1.0 / r_ij2;
 				double r6i = r2i * r2i * r2i;
-				for (int d = 0; d < NDIM; d++) {
-					//e_potential += 0.25 * (4.0 * r6i * (r6i - 1.0) - 0.25 * e_cut);
-					e_potential += 4.0 * r6i * (r6i - 1.0) - e_cut;
-				}
+				e_potential += 4.0 * r6i * (r6i - 1.0) - e_cut;
 			}
 		}
 	}
 	//kinetic energy
 	double sum_v2 = 0.;
 	v_v_autocorrelation = 0.;
+	mean_square_displacement = 0.;
 	for (int i = 0; i < n_particles; i++) {
 		for (int d = 0; d < NDIM; d++) {
 			sum_v2 += v[i][d] * v[i][d];
 			v_v_autocorrelation += v0[i][d] * v[i][d] / n_particles;
+			mean_square_displacement += (r[i][d] - r0[i][d]) * (r[i][d] - r0[i][d]) / n_particles;
 		}
 	}
-	e_kinetic = 3 * 0.5 * sum_v2;
+	//temperature
+	temp_instantaneous = sum_v2 /(3. * n_particles);//s = 3.
+
+	e_kinetic = 0.5 * sum_v2;
 	e_total = (e_potential + e_kinetic); //e_total = e_potential + e_kin
 }
 
 int main() {
-	const int mc_steps = 100000;
-	const int output_steps = 100;
+	const int mc_steps = 5000000;
+	const int output_steps = 1000;
 	double packing_fraction = 0.1;
+	gamma = 6.0 * M_PI * packing_fraction * diameter;
 	const char* init_filename = "fcc_108.dat";
 	std::ios::sync_with_stdio(false);
 	//particle volume
@@ -256,29 +251,27 @@ int main() {
 
 	double t = 0.0;
 
-	std::ofstream energy_file, v_v_a_file;
+	std::ofstream energy_file, correlation_file;
 	energy_file.open("energy.output");
-	v_v_a_file.open("vvautocorr.output");
+	correlation_file.open("correlation.output");
 	force();
 	v_v_autocorrelation = 0.0;
+	mean_square_displacement = 0.0;
 	double D = 0.0;
 	for (int i = 0; i < mc_steps; i++) {
 		t = i * delta_t;
-		integrate_anderson(1);
-		//use old forces and new forces
 		force();
-		integrate_anderson(2);
-		sample();
-		//cout << VAF << ", \n";
+		integrate();
 		D += (1. / (double)NDIM) * delta_t * v_v_autocorrelation;
 		if (i % output_steps == 0) {
-			cout << "t = " << t <<  ", E = " << e_total << ", temp = " << temperature 
-				<< ", temp_inst = "	<< temp_instantaneous << ", e_kin = " << e_kinetic 
+		sample();
+			cout << "t = " << t << ", E = " << e_total << ", temp = " << temperature
+				<< ", temp_inst = " << temp_instantaneous << ", e_kin = " << e_kinetic
 				<< ", e_pot = " << e_potential << "\n";
 			//cout << "{" << e_potential << ", " << e_kinetic << "},\n";
-			energy_file << t << ',' << e_total << ',' << temp_instantaneous << "\n";
-			v_v_a_file << v_v_autocorrelation << ", \n";
-			//write_data((int)(t * 10000));
+			energy_file << t << ',' << e_total << ',' << temp_instantaneous << ',' << e_potential << ',' << e_kinetic << "\n";
+			correlation_file << v_v_autocorrelation << ',' << mean_square_displacement << "\n";
+			write_data((int)(t * 10000));
 		}
 	}
 	cout << "D = " << D << "\n";
