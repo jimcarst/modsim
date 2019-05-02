@@ -29,6 +29,7 @@ double mean_square_displacement;
 double box[NDIM];
 double r_prev_t[N][NDIM];
 double f[N][NDIM];
+int version;
 std::mt19937 rng;
 std::uniform_real_distribution<double> random_zero_one(0.0, 1.0);
 std::uniform_real_distribution<double> random_minusOne_one(-1.0, 1.0);
@@ -120,11 +121,15 @@ void init_velocities_positions() {
 }
 
 void init_cutoff() {
-	//r_cut = 0.5 * box[0];
-	r_cut = 2.5 * diameter;
-	r_cut2 = r_cut * r_cut;
-	double r_cuti6 = 1. / (pow(r_cut, 6.));//2.5 sigma
-	e_cut = 4. * (r_cuti6 * (r_cuti6 - 1.));
+	if (version == 0) {//Lennard-Jones
+		r_cut = 2.5 * diameter;
+	}
+	else if (version == 1) {//Weeks Chandler Anderson
+		r_cut = pow(2.0, 1.0 / 6.0) * diameter;
+	}
+		r_cut2 = r_cut * r_cut;
+		double r_cuti6 = 1. / (pow(r_cut, 6.));//2.5 sigma
+		e_cut = 4. * (r_cuti6 * (r_cuti6 - 1.));
 }
 
 void force() {
@@ -209,7 +214,12 @@ void sample() {
 			if (r_ij2 < r_cut2) {
 				double r2i = 1.0 / r_ij2;
 				double r6i = r2i * r2i * r2i;
-				e_potential += 4.0 * r6i * (r6i - 1.0) - e_cut;
+				if (version == 0) {
+					e_potential += 4.0 * r6i * (r6i - 1.0) - e_cut;
+				}
+				else if (version == 1) {
+					e_potential += 4.0 * r6i * (r6i - 1.0) + 1.;
+				}
 			}
 		}
 	}
@@ -232,9 +242,11 @@ void sample() {
 }
 
 int main() {
-	const int mc_steps = 5000000;
+	const int mc_steps = 2000000;
 	const int output_steps = 1000;
-	double packing_fraction = 0.1;
+	double packing_fraction = 1.0;
+	version = 0;//Lennard Jones
+	//version = 1;//Weeks Chandler Anderson
 	gamma = 6.0 * M_PI * packing_fraction * diameter;
 	const char* init_filename = "fcc_108.dat";
 	std::ios::sync_with_stdio(false);
@@ -251,9 +263,9 @@ int main() {
 
 	double t = 0.0;
 
-	std::ofstream energy_file, correlation_file;
+	std::ofstream energy_file;// , correlation_file;
 	energy_file.open("energy.output");
-	correlation_file.open("correlation.output");
+	//correlation_file.open("correlation.output");
 	force();
 	v_v_autocorrelation = 0.0;
 	mean_square_displacement = 0.0;
@@ -269,8 +281,8 @@ int main() {
 				<< ", temp_inst = " << temp_instantaneous << ", e_kin = " << e_kinetic
 				<< ", e_pot = " << e_potential << "\n";
 			//cout << "{" << e_potential << ", " << e_kinetic << "},\n";
-			energy_file << t << ',' << e_total << ',' << temp_instantaneous << ',' << e_potential << ',' << e_kinetic << "\n";
-			correlation_file << v_v_autocorrelation << ',' << mean_square_displacement << "\n";
+			energy_file << t << ',' << e_total << ',' << temp_instantaneous << ',' << e_potential << ',' << e_kinetic << ',' << v_v_autocorrelation << ',' << mean_square_displacement << "\n";
+			//correlation_file << v_v_autocorrelation << ',' << mean_square_displacement << "\n";
 			write_data((int)(t * 10000));
 		}
 	}
