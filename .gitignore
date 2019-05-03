@@ -336,3 +336,4 @@ coords*.dat
 *.exe
 *.nb
 *.output
+*.csv
