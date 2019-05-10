@@ -3,9 +3,12 @@
 #include <fstream>
 #include <random>
 #include <chrono>
-using std::cout; using std::endl;
-#pragma warning(disable : 4996)
 #include <stdio.h>
+using std::cout; using std::endl;
+
+std::mt19937 rng;
+std::uniform_real_distribution<double> random_zero_one(0.0, 1.0);
+double beta, J;
 class Lattice {
 public:
 private:
@@ -13,70 +16,115 @@ private:
 };
 const int N = 50;
 int lattice[N * N] = { 0 };
-
+double prob[5];
 void print() {
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < N; i++) {
 		cout << "---";
 	}
 	cout << "\n";
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < N * N; i++) {
 		cout << std::showpos << lattice[i] << ", ";
-		if ((i + 1) % 10 == 0) {
+		if ((i + 1) % N == 0) {
 			cout << "\n";
 		}
 	}
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < N; i++) {
 		cout << "---";
 	}
 }
 
-void writeConfiguration(int step) {
+void write_data(int step) {
 	char buffer[128];
-	sprintf(buffer, "configurations/conf_step%d.csv", step);
-	FILE* fp = fopen(buffer, "w");
+	snprintf(buffer, 128, "configurations/conf_step%d.csv", step);
+	std::ofstream file;
+	file.open(buffer);
 	for (int k = 0; k < N; k++) {
 		for (int l = 0; l < N - 1; l++) {
-			fprintf(fp, "%d,", lattice[k * N + l]);
-	
+			file << lattice[k * N + l] << ',';
 		}
-		fprintf(fp, "%d\n", lattice[k * N + N - 1]);
+		file << lattice[k * N + N - 1] << "\n";
 	}
-	fclose(fp);
+	file.close();
 }
+
 
 int magnetisation() {
 	int M = 0;
 	for (int i = 0; i < N * N; i++) {
 		M += lattice[i];
 	}
-	return M;
+	return M;//per latice
 }
+int energy() {
+	int E = 0;
+	return E;
+}
+int heat_capacity() {
+	int HC = 0;
+	return HC;
+}
+int magnetic_autocorrelation() {
+	int MAC = 0;
+	return MAC;
+}
+
+void initialize() {
+	for (int i = 2; i < 5; i += 2) prob[i] = exp(-2 * beta * i);
+}
+
+
+void sweep() {
+	int i;
+	int nn, sum, delta;
+	for (int k = 0; k < N; k++) {
+		// Choose a site 
+		i = std::uniform_int_distribution<int>(0, N * N)(rng);
+		// Calculate the sum of the neighbouring spins 
+		if ((nn = i + 1) >= N) nn -= N;
+		sum = lattice[nn];
+		if ((nn = i - 1) < 0) nn += N;
+		sum += lattice[nn];
+		if ((nn = i + N) >= N) nn -= N;
+		sum += lattice[nn];
+		if ((nn = i - N) < 0) nn += N;
+		sum += lattice[nn];
+		// Calculate the change in energy 
+		delta = sum * lattice[i];
+		//Decide whether to flip spin 
+		if (delta <= 0) {
+			lattice[i] = -lattice[i];
+		}
+		else if (random_zero_one(rng) < prob[delta]) {
+			lattice[i] = -lattice[i];
+		}
+	}
+}
+
+
 int main() {
+	beta = -2.3;
+	double B = 0.;
 	std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
-	std::uniform_real_distribution<double> random_zero_one(0.0, 1.0);
-	const int mc_steps = 1000;
+	const int mc_steps = 100000;
+	const int output_steps = 100;
 
 	for (int i = 0; i < N * N; i++) {
-		if (i % 2 == 0) {
+		if (random_zero_one(rng) <= 0.5) {
 			lattice[i] = -1;
 		}
 		else {
 			lattice[i] = 1;
 		}
 	}
-
 	print();
+	initialize();
 	for (int i = 0; i < mc_steps; ++i) {
-		if (random_zero_one(rng) < 0.1) {
-			int random_site = std::uniform_int_distribution<int>(0, N * N)(rng);
-			lattice[random_site] = -1;
+		sweep();
+		if (i % output_steps == 0) {
+			cout << magnetisation() << ", \n";
+			write_data(i);
 		}
-		//print();
-		cout << magnetisation() << ", \n";
-		writeConfiguration(i);
-		//write_data(i);
 	}
-
 
 	return 0;
 }

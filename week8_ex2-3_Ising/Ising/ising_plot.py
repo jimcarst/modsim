@@ -4,7 +4,7 @@ import sys
 ftype = "conf"
 data = []
 dir = "configurations/"
-speed = 1000000
+speed = 100000000
 
 ##Initialisation
 file = open(dir + ftype + "_step0.csv", "r")
@@ -42,8 +42,8 @@ def readCSV(filename):
 pt.hot()
 fig = pt.imshow(data,interpolation='none',vmin=-1.0,vmax=1.0)
 
-tot_steps = 10000
-step = 1
+tot_steps = 100000
+step = 100
 for i in range(0, tot_steps, step):
     try:
         readCSV(dir + ftype + "_step{:d}.csv".format(i))
