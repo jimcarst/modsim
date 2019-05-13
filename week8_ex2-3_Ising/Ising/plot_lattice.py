@@ -43,7 +43,7 @@ pt.hot()
 fig = pt.imshow(data,interpolation='none',vmin=-1.0,vmax=1.0)
 
 tot_steps = 100000
-step = 100
+step = 1
 for i in range(0, tot_steps, step):
     try:
         readCSV(dir + ftype + "_step{:d}.csv".format(i))
@@ -52,5 +52,6 @@ for i in range(0, tot_steps, step):
         exit()
     plotModel(data)
     fig.set_data(data)
-    pt.pause(1.E-6)
+    pt.pause(1.E-2)
     pt.draw()
+input()
