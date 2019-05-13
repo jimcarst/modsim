@@ -28,15 +28,15 @@ public:
 		return _array[y * _width + x];
 	}
 	int& operator()(int x, int y) {
-		if (x >= _width || x < 0 || y >= _heigth || y < 0) { cout << "ERROR"; }
+		if (x >= _width || x < 0 || y >= _heigth || y < 0) { cout << "ERROR_xy, " << x << ", " << y; }
 		return _array[y * _width + x];
 	}
 	int& at(int i) {
-		if (i < 0 || i >= _size) { cout << "ERROR"; }
+		if (i < 0 || i >= _size) { cout << "ERROR_at, "; }
 		return _array[i];
 	}
 	void set(int x, int y, int value) {
-		if (x >= _width || x<0 || y>_heigth || y < 0) { cout << "ERROR"; }
+		if (x >= _width || x<0 || y>_heigth || y < 0) { cout << "ERROR_set, "; }
 		_array[y * _width + x] = value;
 	}
 	// get dims
@@ -54,12 +54,14 @@ private:
 
 std::mt19937 rng;
 std::uniform_real_distribution<double> random_zero_one(0.0, 1.0);
-double beta, J;
+double beta;
+int J;
 const int N = 50;
 const int lattice_size = N * N;
 //int lattice[N * N] = { 0 };
-double prob[8];
+double prob[18];
 Lattice lat(N, N);
+int M_total;
 
 void print() {
 	for (int i = 0; i < N; i++) {
@@ -95,12 +97,14 @@ void write_data(int step) {
 int magnetisation() {
 	int M = 0;
 	for (int i = 0; i < N * N; i++) {
-		//	M += lattice[i];
+		M += lat.at(i);
 	}
 	return M;//per latice
 }
 int energy() {
 	int E = 0;
+for(int x=0;x)
+	}
 	return E;
 }
 int heat_capacity() {
@@ -113,8 +117,8 @@ int magnetic_autocorrelation() {
 }
 
 void initialize() {
-	for (int i = 2; i < 5; i += 2) {
-		prob[i] = exp(-2 * beta * i);
+	for (int i = 2; i < 18; i += 2) {
+		prob[i] = exp(-beta * i);
 	}
 }
 void init_infinite_temperature() {
@@ -157,38 +161,65 @@ void sweep() {
 	}
 }
 */
-void sweep2() {
+void flip(int x, int y) {
+	lat.set(x, y, -lat(x, y));
+}
+
+void sweep() {
 	for (int i = 0; i < lattice_size; i++) {
-		int random_x = std::uniform_int_distribution<int>(0, N)(rng);
-		int random_y = std::uniform_int_distribution<int>(0, N)(rng);
-		double delta_E = 0.;
+		int random_x = std::uniform_int_distribution<int>(0, N - 1)(rng);
+		int random_y = std::uniform_int_distribution<int>(0, N - 1)(rng);
+		int sum = 0;
 		for (int dx = -1; dx < 2; dx++) {
 			for (int dy = -1; dy < 2; dy++) {
 				if (!(dx == 0 && dy == 0)) {
-					delta_E += 2 * J * lat(random_x, random_y) * lat(random_x + dx, random_y + dy);
-					//periodic boundary conditions
+					int neighbour_x = random_x + dx;
+					int neighbour_y = random_y + dy;
+					if (neighbour_x == N) {
+						neighbour_x = 0;
+					}
+					if (neighbour_x == -1) {
+						neighbour_x = N - 1;
+					}
+					if (neighbour_y == N) {
+						neighbour_y = 0;
+					}
+					if (neighbour_y == -1) {
+						neighbour_y = N - 1;
+					}
+					sum += lat(neighbour_x, neighbour_y);
 				}
 			}
+		}
+		int delta_E = 2 * J * lat(random_x, random_y) * sum;
+		if (delta_E <= 0) {
+			flip(random_x, random_y);
+		}
+		else if (random_zero_one(rng) < prob[delta_E]) {
+			flip(random_x, random_y);
+		//	cout << delta_E<<", ";
 		}
 	}
 }
 
 
 	int main() {
-		lat.init(1);
-		beta = 1 / 2.;
+		//lat.init(-1);
+		init_infinite_temperature();
+		beta = 1 / 0.5;
+		J = 1;
 		std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 		const int mc_steps = 100000;
 		const int output_steps = 100;
-
-
-		print();
+		
+		//print();
 		initialize();
+		M_total = magnetisation();
 		for (int i = 0; i < mc_steps; ++i) {
-			sweep2();
-			if (i % output_steps == 0) {
-				cout << magnetisation() << ", \n";
+			sweep();
 				write_data(i);
+			if (i % output_steps == 0) {
+				cout<<"M = " << magnetisation() << ", \n";
 			}
 		}
 
