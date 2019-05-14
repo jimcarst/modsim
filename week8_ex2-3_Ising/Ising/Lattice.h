@@ -18,15 +18,15 @@ public:
 			_array[i] = value;
 		}
 	}
-	const int& operator()(int x, int y) const {
+	const int& operator()(unsigned x, unsigned y) const {
 		if (x >= _width || x<0 || y>_heigth || y < 0) { return 999; }
 		return _array[y * _width + x];
 	}
-	int& operator()(int x, int y) {
+	int& operator()(unsigned x, unsigned y) {
 		if (x >= _width || x < 0 || y >= _heigth || y < 0) { cout << "ERROR_xy, " << x << ", " << y; }
 		return _array[y * _width + x];
 	}
-	int& at(int i) {
+	int& at(unsigned i) {
 		if (i < 0 || i >= _size) { cout << "ERROR_at, "; }
 		return _array[i];
 	}

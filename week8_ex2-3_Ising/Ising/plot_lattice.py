@@ -7,10 +7,10 @@ dir = "configurations/"
 speed = 100000000
 
 ##Initialisation
-file = open(dir + ftype + "_step0.csv", "r")
+file = open(dir + ftype + "_step0.output", "r")
 for line in file:
     data.append([])
-    line_list = list(line.split(","))
+    line_list = list(line.split(" "))
     for l in line_list:
         data[-1].append(float(l))
 file.close()
@@ -30,28 +30,31 @@ def plotModel(input_data):
             else:
                 print(input_data[x][y])
 
-def readCSV(filename):
+
+def readoutput(filename):
     file = open(filename, "r")
     ld = 0
     for line in file:
-        dt = list(line.split(","))
+        dt = list(line.split(" "))
         for l in range(len(dt)):
             data[ld][l] = float(dt[l])
         ld += 1
     file.close()
+    
+    
 pt.hot()
 fig = pt.imshow(data,interpolation='none',vmin=-1.0,vmax=1.0)
 
-tot_steps = 100000
-step = 1
+tot_steps = 300000
+step = 100
 for i in range(0, tot_steps, step):
     try:
-        readCSV(dir + ftype + "_step{:d}.csv".format(i))
+        readoutput(dir + ftype + "_step{:d}.output".format(i))
     except:
-        print("Error: could not open data file: " + dir + ftype + "_step{:d}.csv".format(i))
+        print("Error: could not open data file: " + dir + ftype + "_step{:d}.output".format(i))
         exit()
     plotModel(data)
     fig.set_data(data)
-    pt.pause(1.E-2)
+    pt.pause(1.E-4)
     pt.draw()
 input()
