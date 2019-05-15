@@ -47,7 +47,7 @@ fig = pt.imshow(data,interpolation='none',vmin=-1.0,vmax=1.0)
 
 tot_steps = 300000
 step = 100
-for i in range(0, tot_steps, step):
+for i in range(1010, tot_steps, step):
     try:
         readoutput(dir + ftype + "_step{:d}.output".format(i))
     except:
