@@ -232,12 +232,12 @@ void wolff_step() {
 int main() {
 	const int mc_steps = 1100000;
 	const int output_steps = 1000;
-	//lat.init(1);
-	init_infinite_temperature();
-	temperature = 5.0;
+	lat.init(1);
+	//init_infinite_temperature();
+	temperature = 3.3;
 	beta = 1. / temperature;
 	set_probabilities();
-	J = 1;	
+	J = 1;
 	std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 	M_total = magnetisation();
 	E_total = energy();
@@ -251,22 +251,18 @@ int main() {
 	std::vector<double> e_measurement;
 	std::vector<double> m_measurement;
 	for (int i = 0; i < mc_steps; ++i) {
-		//sweep();
-		wolff_step();
-		if (i % 10 == 0) write_data(i);
+		sweep();
+		//wolff_step();
 		measure_time++;
-		measure_file << M_total << ',' << E_total << "\n";
-		/*if (measure_time > 1000) {
-			measure_file.close();
-			plot_file.close();
-			return 0;
-		}*/
-
 		if (measure_time > 1000 && measure_time % 100 == 0) {
+			M_total = fabs(magnetisation());
+			E_total = energy();
 			e_measurement.push_back((double)E_total / lattice_size);
 			m_measurement.push_back((double)M_total / lattice_size);
 		}
-
+		if (measure_time > 1000 && measure_time < 2001) {
+			measure_file << fabs(magnetisation()) << ',' << energy() << "\n";
+		}
 		if (measure_time > 11000) {//1000+100*100
 			double e_mean = mean(e_measurement);
 			double m_mean = mean(m_measurement);
@@ -280,10 +276,11 @@ int main() {
 
 			cout << "WRITE (T, m, e, heat_cap, mag_sus) " << temperature << ", " << m_mean << ", " << e_mean;
 			cout << ", " << heat_cap << ", " << magnetic_sus << "\n";
+			measure_file << "T = " << temperature << "\n";
 			measure_time = 0;
 			e_measurement.clear();
 			m_measurement.clear();
-			temperature -= 0.1;
+			temperature += 1.0;
 			beta = 1. / temperature;
 			set_probabilities();
 		}
