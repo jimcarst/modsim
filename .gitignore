@@ -337,3 +337,7 @@ coords*.dat
 *.nb
 *.output
 *.csv
+*.xml
+*.blg
+*.bcf
+*.bbl
